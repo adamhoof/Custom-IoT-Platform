@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func setupMqttClient() *MQTT.Client {
+func setupMqttClient() MQTT.Client {
 	var broker = os.Getenv("MQTT_BROKER")
 	var port = os.Getenv("MQTT_PORT")
 	opts := MQTT.NewClientOptions()
@@ -29,10 +29,10 @@ func setupMqttClient() *MQTT.Client {
 	client.Subscribe(os.Getenv("MQTT_LOGIN_REQUEST_TOPIC"), 1, mqtt_handlers.HandleLogin)
 	client.Subscribe(os.Getenv("MQTT_POST_TOPIC"), 1, mqtt_handlers.HandlePost)
 
-	return &client
+	return client
 }
 
 func main() {
 	mqttClient := setupMqttClient()
-	(*mqttClient).Disconnect(250)
+	mqttClient.Disconnect(250)
 }
