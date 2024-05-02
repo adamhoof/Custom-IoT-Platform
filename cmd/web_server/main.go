@@ -1,10 +1,12 @@
 package main
 
 import (
+	"NSI-semester-work/internal/http_handlers"
 	"NSI-semester-work/internal/mqtt_handlers"
 	"fmt"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"log"
+	"net/http"
 	"os"
 	"time"
 )
@@ -23,21 +25,43 @@ func setupMqttClient() (MQTT.Client, error) {
 	opts.SetMaxReconnectInterval(time.Second * 10)
 
 	client := MQTT.NewClient(opts)
+	fmt.Println("connecting to mqtt broker")
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		return nil, fmt.Errorf("unable to connect to client")
+		return nil, fmt.Errorf("unable to connect to client %s\n", token.Error())
 	}
 
-	client.Subscribe(os.Getenv("MQTT_LOGIN_REQUEST_TOPIC"), 1, mqtt_handlers.HandleLogin)
-	client.Subscribe(os.Getenv("MQTT_POST_TOPIC"), 1, mqtt_handlers.HandlePost)
+	if token := client.Subscribe(os.Getenv("MQTT_LOGIN_REQUEST_TOPIC"), 1, mqtt_handlers.HandleLogin); token.Wait() && token.Error() != nil {
+		return nil, fmt.Errorf("failed to subscribe to login topic: %v", token.Error())
+	}
+	if token := client.Subscribe(os.Getenv("MQTT_POST_TOPIC"), 1, mqtt_handlers.HandlePost); token.Wait() && token.Error() != nil {
+		return nil, fmt.Errorf("failed to subscribe to post topic: %v", token.Error())
+	}
 
 	return client, nil
 }
 
+func setupHttpServer() error {
+	serverHostname := os.Getenv("HTTP_SERVER_HOST")
+	port := os.Getenv("HTTP_SERVER_PORT")
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", http_handlers.HandleHome)
+
+	fmt.Printf("starting HTTP server: http://%s:%s\n", serverHostname, port)
+	if err := http.ListenAndServe(fmt.Sprintf("%s:%s", serverHostname, port), mux); err != nil {
+		return fmt.Errorf("unable to start server %s\n", err)
+	}
+	return nil
+}
+
 func main() {
-	mqttClient, err := setupMqttClient()
+	_, err := setupMqttClient()
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 		return
 	}
-	mqttClient.Disconnect(250)
+
+	if err = setupHttpServer(); err != nil {
+		log.Fatal(err)
+	}
 }
