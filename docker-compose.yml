@@ -1,0 +1,47 @@
+services:
+  webapp:
+    build:
+      context: .
+      dockerfile: ./cmd/web_server/Dockerfile
+    ports:
+      - "4444:4444"
+    depends_on:
+      - db
+      - mosquitto
+    env_file:
+      - env.list
+    volumes:
+      - webapp_data:/app/data
+    networks:
+      - iot_network
+
+  db:
+    image: postgres:16.2
+    env_file: env.list
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - iot_network
+
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    ports:
+      - "1883:1883"
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+      - ./mosquitto_mqtt_broker/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - iot_network
+
+volumes:
+  postgres_data:
+  webapp_data:
+  mosquitto_config:
+  mosquitto_data:
+  mosquitto_log:
+
+networks:
+  iot_network:
