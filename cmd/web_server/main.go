@@ -4,11 +4,12 @@ import (
 	"NSI-semester-work/internal/mqtt_handlers"
 	"fmt"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
+	"log"
 	"os"
 	"time"
 )
 
-func setupMqttClient() MQTT.Client {
+func setupMqttClient() (MQTT.Client, error) {
 	var broker = os.Getenv("MQTT_BROKER")
 	var port = os.Getenv("MQTT_PORT")
 	opts := MQTT.NewClientOptions()
@@ -23,16 +24,20 @@ func setupMqttClient() MQTT.Client {
 
 	client := MQTT.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
+		return nil, fmt.Errorf("unable to connect to client")
 	}
 
 	client.Subscribe(os.Getenv("MQTT_LOGIN_REQUEST_TOPIC"), 1, mqtt_handlers.HandleLogin)
 	client.Subscribe(os.Getenv("MQTT_POST_TOPIC"), 1, mqtt_handlers.HandlePost)
 
-	return client
+	return client, nil
 }
 
 func main() {
-	mqttClient := setupMqttClient()
+	mqttClient, err := setupMqttClient()
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	mqttClient.Disconnect(250)
 }
