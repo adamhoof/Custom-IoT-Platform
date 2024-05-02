@@ -1,6 +1,7 @@
 package main
 
 import (
+	"NSI-semester-work/internal/db"
 	"NSI-semester-work/internal/http_handlers"
 	"NSI-semester-work/internal/mqtt_handlers"
 	"fmt"
@@ -30,14 +31,19 @@ func setupMqttClient() (MQTT.Client, error) {
 		return nil, fmt.Errorf("unable to connect to client %s\n", token.Error())
 	}
 
-	if token := client.Subscribe(os.Getenv("MQTT_LOGIN_REQUEST_TOPIC"), 1, mqtt_handlers.HandleLogin); token.Wait() && token.Error() != nil {
-		return nil, fmt.Errorf("failed to subscribe to login topic: %v", token.Error())
+	return client, nil
+}
+
+func setupMqttSubscriptionHandlers(client MQTT.Client, database *db.Database) error {
+	if token := client.Subscribe("login/request", 0, func(client MQTT.Client, msg MQTT.Message) {
+		mqtt_handlers.HandleDeviceLogin(client, msg, database)
+	}); token.Wait() && token.Error() != nil {
+		return fmt.Errorf("failed to subscribe to login topic: %v", token.Error())
 	}
 	if token := client.Subscribe(os.Getenv("MQTT_POST_TOPIC"), 1, mqtt_handlers.HandlePost); token.Wait() && token.Error() != nil {
-		return nil, fmt.Errorf("failed to subscribe to post topic: %v", token.Error())
+		return fmt.Errorf("failed to subscribe to post topic: %v", token.Error())
 	}
-
-	return client, nil
+	return nil
 }
 
 func setupHttpServer() error {
@@ -55,10 +61,32 @@ func setupHttpServer() error {
 }
 
 func main() {
-	_, err := setupMqttClient()
+	mqttClient, err := setupMqttClient()
 	if err != nil {
 		log.Fatal(err)
 		return
+	}
+
+	dataSourceName := fmt.Sprintf("postgresql://%s:%s@%s/%s?sslmode=disable",
+		os.Getenv("POSTGRES_USER"),
+		os.Getenv("POSTGRES_PASSWORD"),
+		os.Getenv("POSTGRES_HOSTNAME"),
+		os.Getenv("POSTGRES_DB"),
+	)
+	database, err := db.NewDatabase(dataSourceName)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer func(database *db.Database) {
+		err = database.Close()
+		if err != nil {
+
+		}
+	}(database)
+
+	err = setupMqttSubscriptionHandlers(mqttClient, database)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	if err = setupHttpServer(); err != nil {

@@ -1,16 +1,27 @@
 package mqtt_handlers
 
 import (
+	"NSI-semester-work/internal/db"
+	"NSI-semester-work/internal/model"
+	"encoding/json"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"log"
 	"os"
 )
 
-func HandleLogin(client MQTT.Client, msg MQTT.Message) {
-	// Assume msg.Payload() contains the device ID and credentials
-	log.Printf("Login request from device: %s", msg.Payload())
+func HandleDeviceLogin(client MQTT.Client, msg MQTT.Message, database *db.Database) {
+	var device model.Device
+	if err := json.Unmarshal(msg.Payload(), &device); err != nil {
+		log.Printf("Error decoding JSON: %s", err)
+		return
+	}
+	log.Println(device)
 
-	// Here you would check the device credentials against your database
-	// For now, we assume the login is successful and publish an acknowledgement
-	client.Publish(os.Getenv("MQTT_LOGIN_RESPONSE_TOPIC"), 0, false, "Login successful")
+	err := database.RegisterDevice(&device)
+	if err != nil {
+		log.Println(err)
+	}
+
+	token := client.Publish(os.Getenv("MQTT_LOGIN_RESPONSE_TOPIC"), 0, false, "Success")
+	token.Wait()
 }
