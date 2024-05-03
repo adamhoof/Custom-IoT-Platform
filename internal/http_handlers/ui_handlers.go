@@ -81,3 +81,54 @@ func DeviceFeaturesHandler(w http.ResponseWriter, r *http.Request, database *db.
 	}
 
 }
+
+func CreateDashboard(w http.ResponseWriter, r *http.Request, db *db.Database) {
+	// Parse the request form data
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+	fmt.Println("Form data:", r.Form)
+
+	// Extract and validate dashboard name
+	dashboardName := r.FormValue("dashboardName")
+	if dashboardName == "" {
+		http.Error(w, "Dashboard name is required", http.StatusBadRequest)
+		return
+	}
+
+	// Remove the dashboardName key from the form to process device entries
+	r.Form.Del("dashboardName")
+
+	var deviceEntries []model.DeviceInDashboard
+	position := 0
+	for key, values := range r.Form {
+		// Encode functionalities into a JSON string
+		functionalitiesJSON, err := json.Marshal(values)
+		if err != nil {
+			http.Error(w, "Error encoding functionalities", http.StatusInternalServerError)
+			return
+		}
+
+		deviceID, err := db.GetDeviceIDByUUID(key)
+		deviceEntries = append(deviceEntries, model.DeviceInDashboard{
+			Id:              deviceID,
+			Functionalities: string(functionalitiesJSON),
+			Position:        position,
+		})
+		position++
+	}
+
+	dashboardID, err := db.CreateDashboard(dashboardName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to create dashboard: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if err = db.InsertDevicesToDashboard(dashboardID, deviceEntries); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to save devices: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Redirect or update frontend as needed
+	fmt.Fprintln(w, "Dashboard saved successfully!") // Adjust based on your frontend needs
+}

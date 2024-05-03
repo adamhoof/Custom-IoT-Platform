@@ -10,7 +10,7 @@
 <body>
 <div>
     <h2>Dashboard Creator</h2>
-    <form id="dashboardForm" hx-post="/save_dashboard">
+    <form id="dashboardForm" hx-post="/create_dashboard">
         <input type="text" name="dashboardName" placeholder="Enter Dashboard Name" required class="form-control mb-3">
         {{range .Devices}}
         <div class="card mb-3">

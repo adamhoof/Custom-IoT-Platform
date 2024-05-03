@@ -54,6 +54,7 @@ func setupHttpServer(database *db.Database) error {
 	mux.HandleFunc("/", http_handlers.HandleHome)
 	mux.HandleFunc("/dashboard_creator", func(w http.ResponseWriter, r *http.Request) { http_handlers.DashboardCreatorHandler(w, r, database) })
 	mux.HandleFunc("/device_features", func(w http.ResponseWriter, r *http.Request) { http_handlers.DeviceFeaturesHandler(w, r, database) })
+	mux.HandleFunc("/create_dashboard", func(w http.ResponseWriter, r *http.Request) { http_handlers.CreateDashboard(w, r, database) })
 
 	fmt.Printf("starting HTTP server: http://%s:%s\n", serverHostname, port)
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%s", serverHostname, port), mux); err != nil {
