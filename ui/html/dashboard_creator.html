@@ -10,11 +10,13 @@
 <body>
 <div>
     <h2>Dashboard Creator</h2>
-    <form id="dashboardForm">
+    <form id="dashboardForm" hx-post="/save_dashboard">
+        <input type="text" name="dashboardName" placeholder="Enter Dashboard Name" required class="form-control mb-3">
         {{range .Devices}}
         <div class="card mb-3">
             <div class="card-body">
-                <h5 class="card-title" hx-get="/device_features" hx-vals='{"deviceType": "{{.DeviceType.String}}"}' hx-target="#device{{.UUID}}" hx-trigger="click">
+                <h5 class="card-title" hx-get="/device_features" hx-vals='{"deviceType": "{{.DeviceType.String}}", "uuid": "{{.UUID}}"}'
+                    hx-target="#device{{.UUID}}" hx-trigger="click">
                     {{.Name}}
                 </h5>
                 <div id="device{{.UUID}}"></div>

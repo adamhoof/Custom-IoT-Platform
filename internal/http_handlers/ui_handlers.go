@@ -3,6 +3,7 @@ package http_handlers
 import (
 	"NSI-semester-work/internal/db"
 	"NSI-semester-work/internal/model"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -44,7 +45,15 @@ func DashboardCreatorHandler(w http.ResponseWriter, r *http.Request, database *d
 }
 
 func DeviceFeaturesHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
-	deviceType := strings.Split(r.URL.Query().Get("deviceType"), "=")[0]
+	deviceType := ""
+	uuid := ""
+	query := r.URL.Query()
+	if deviceTypeParam, ok := query["deviceType"]; ok {
+		deviceType = strings.Split(deviceTypeParam[0], "=")[0]
+	}
+	if uuidParam, ok := query["uuid"]; ok {
+		uuid = strings.Split(uuidParam[0], "=")[0]
+	}
 
 	var features []string
 	switch deviceType {
@@ -61,7 +70,11 @@ func DeviceFeaturesHandler(w http.ResponseWriter, r *http.Request, database *db.
 		return
 	}
 
-	if err := t.Execute(w, map[string]interface{}{"Features": features}); err != nil {
+	data := map[string]interface{}{
+		"Features": features,
+		"UUID":     uuid,
+	}
+	if err := t.Execute(w, data); err != nil {
 		fmt.Printf("error executing feature template %s\n", err)
 		http.Error(w, "Error executing feature template", http.StatusInternalServerError)
 		return
