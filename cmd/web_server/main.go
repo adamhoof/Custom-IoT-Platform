@@ -46,12 +46,14 @@ func setupMqttSubscriptionHandlers(client MQTT.Client, database *db.Database) er
 	return nil
 }
 
-func setupHttpServer() error {
+func setupHttpServer(database *db.Database) error {
 	serverHostname := os.Getenv("HTTP_SERVER_HOST")
 	port := os.Getenv("HTTP_SERVER_PORT")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", http_handlers.HandleHome)
+	mux.HandleFunc("/dashboard_creator", func(w http.ResponseWriter, r *http.Request) { http_handlers.DashboardCreatorHandler(w, r, database) })
+	mux.HandleFunc("/device_features", func(w http.ResponseWriter, r *http.Request) { http_handlers.DeviceFeaturesHandler(w, r, database) })
 
 	fmt.Printf("starting HTTP server: http://%s:%s\n", serverHostname, port)
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%s", serverHostname, port), mux); err != nil {
@@ -89,7 +91,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err = setupHttpServer(); err != nil {
+	if err = setupHttpServer(database); err != nil {
 		log.Fatal(err)
 	}
 }
