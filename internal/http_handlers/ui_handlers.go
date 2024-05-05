@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
-func HandleHome(w http.ResponseWriter, r *http.Request, database *db.Database) {
+func HandleHome(w http.ResponseWriter, database *db.Database) {
 	t, err := template.ParseFiles("ui/html/home.gohtml", "ui/html/dashboard_list.gohtml")
 	if err != nil {
 		fmt.Printf("error loading template %s\n", err)
@@ -36,7 +37,7 @@ func HandleHome(w http.ResponseWriter, r *http.Request, database *db.Database) {
 
 }
 
-func DashboardCreatorHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
+func DashboardCreatorHandler(w http.ResponseWriter, database *db.Database) {
 	t, err := template.ParseFiles("ui/html/dashboard_creator.gohtml")
 	if err != nil {
 		fmt.Printf("failed to load dashboard creator template %s\n", err)
@@ -58,7 +59,7 @@ func DashboardCreatorHandler(w http.ResponseWriter, r *http.Request, database *d
 	}
 }
 
-func DeviceFeaturesHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
+func DeviceFeaturesHandler(w http.ResponseWriter, r *http.Request) {
 	deviceType := ""
 	uuid := ""
 	query := r.URL.Query()
@@ -126,7 +127,7 @@ func CreateDashboardHandler(w http.ResponseWriter, r *http.Request, db *db.Datab
 
 		deviceID, err := db.GetDeviceIDByUUID(key)
 		deviceEntries = append(deviceEntries, model.DeviceInDashboard{
-			Id:              deviceID,
+			Device:          model.Device{ID: deviceID},
 			Functionalities: string(functionalitiesJSON),
 			Position:        position,
 		})
@@ -149,18 +150,59 @@ func CreateDashboardHandler(w http.ResponseWriter, r *http.Request, db *db.Datab
 	}
 }
 
-func DashboardHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
-	dashboards, err := database.FetchDashboards()
+func DisplayDashboardHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
+	stringId := r.PathValue("id")
+	id, err := strconv.Atoi(stringId)
 	if err != nil {
-		fmt.Printf("unable to fetch dashboards: %s\n", err)
-		http.Error(w, fmt.Sprintf("unable to fetch dashboards: %v", err), http.StatusInternalServerError)
+		fmt.Printf("error converting string id to int %s\n", err)
+		http.Error(w, "Invalid dashboard ID", http.StatusBadRequest)
 		return
 	}
-	t := template.Must(template.ParseFiles("ui/html/dashboard_list.gohtml"))
+
+	name, devices, err := database.FetchDashboardContents(id)
+	if err != nil {
+		fmt.Printf("failed to fetch dashboard contents %s\n", err)
+		http.Error(w, "Failed to fetch dashboard contents", http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Println(devices)
+
+	t, err := template.ParseFiles("ui/html/dashboard.gohtml")
+	if err != nil {
+		fmt.Printf("failed to parse template %s\n", err)
+		http.Error(w, "Failed to parse template", http.StatusInternalServerError)
+		return
+	}
+
 	err = t.Execute(w, map[string]interface{}{
-		"Dashboards": dashboards,
+		"Devices": devices,
+		"Name":    name,
 	})
 	if err != nil {
-		http.Error(w, "Failed to render template", http.StatusInternalServerError)
+		fmt.Printf("failed to execute template %s\n", err)
+		http.Error(w, "Failed to execute template", http.StatusInternalServerError)
+		return
 	}
+}
+
+func GetDeviceStateHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
+	stringId := r.PathValue("device_id")
+	id, err := strconv.Atoi(stringId)
+	if err != nil {
+		http.Error(w, "Invalid device ID", http.StatusBadRequest)
+		return
+	}
+
+	state, err := database.GetDeviceStateByID(id)
+	if err != nil {
+		http.Error(w, "Failed to fetch device state", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain") // Set content type as text/plain
+	_, err = w.Write([]byte(state))
+	if err != nil {
+		return
+	} // Write the state as plain text
 }

@@ -109,7 +109,7 @@ func (db *Database) InsertDevicesToDashboard(dashboardID int, devices []model.De
 
 	for _, device := range devices {
 		_, err := tx.Exec(`INSERT INTO device_in_dashboard (device_id, dashboard_id, position_in_dashboard, shown_functionalities) VALUES ($1, $2, $3, $4)`,
-			device.Id, dashboardID, device.Position, device.Functionalities)
+			device.Device.ID, dashboardID, device.Position, device.Functionalities)
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -150,4 +150,68 @@ func (db *Database) FetchDashboards() ([]model.Dashboard, error) {
 	}
 
 	return dashboards, nil
+}
+
+func (db *Database) FetchDevicesInDashboard(dashboardId int) (devices []model.DeviceInDashboard, err error) {
+	rows, err := db.Query(`
+			SELECT devices.device_id, position_in_dashboard, shown_functionalities, devices.name, device_types.name, devices.state
+			FROM device_in_dashboard join devices on devices.device_id = device_in_dashboard.device_id join device_types on devices.device_type_id = device_types.device_type_id
+			WHERE dashboard_id = $1
+			ORDER BY position_in_dashboard`, dashboardId)
+
+	if err != nil {
+		return nil, err
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+
+		}
+	}(rows)
+
+	// Iterate over the rows in the result set
+	for rows.Next() {
+		var device model.DeviceInDashboard
+		err := rows.Scan(&device.Device.ID, &device.Position, &device.Functionalities, &device.Device.Name, &device.Device.DeviceType, &device.Device.State)
+		if err != nil {
+			return nil, err
+		}
+		devices = append(devices, device)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return devices, nil
+}
+
+func (db *Database) FetchDashboardName(dashboardId int) (name string, err error) {
+	err = db.QueryRow(`SELECT name FROM dashboard where dashboard_id = $1`, dashboardId).Scan(&name)
+	if err != nil {
+		return "", err
+	}
+	return name, nil
+}
+
+func (db *Database) FetchDashboardContents(dashboardId int) (name string, devices []model.DeviceInDashboard, err error) {
+	name, err = db.FetchDashboardName(dashboardId)
+	if err != nil {
+		fmt.Printf("unable to fetch name %s\n", err)
+	}
+
+	devices, err = db.FetchDevicesInDashboard(dashboardId)
+	if err != nil {
+		fmt.Printf("unable to fetch devices %s\n", err)
+		return "", nil, err
+	}
+	return name, devices, nil
+}
+
+func (db *Database) GetDeviceStateByID(id int) (state string, err error) {
+	err = db.QueryRow("SELECT state FROM devices WHERE device_id = $1", id).Scan(&state)
+	if err != nil {
+		return "", err
+	}
+	return state, nil
 }

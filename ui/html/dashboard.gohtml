@@ -1,0 +1,21 @@
+<div id="dashboardContent">
+        <h2>{{.Name}}</h2>
+    {{range .Devices}}
+        <div class="device-tile" id="device-{{.Device.ID}}">
+            <h3>{{.Device.Name}}</h3>
+            <!-- Check device type and conditionally render controls -->
+            {{if eq .Device.DeviceType "on_off"}}
+                {{if .HasFunctionality "On"}}
+                    <button hx-post="/device/{{.Device.ID}}/on" hx-target="#device-{{.Device.ID}}" hx-swap="outerHTML">On</button>
+                {{end}}
+                {{if .HasFunctionality "Off"}}
+                    <button hx-post="/device/{{.Device.ID}}/off" hx-target="#device-{{.Device.ID}}" hx-swap="outerHTML">Off</button>
+                {{end}}
+            {{else if eq .Device.DeviceType "single_metric_sensor"}}
+                {{if .HasFunctionality "LastValue"}}
+                    <div>Current Value: <span hx-get="/device/{{.Device.ID}}/state" hx-trigger="every 2s" hx-swap="innerHTML">{{.Device.State}}</span></div>
+                {{end}}
+            {{end}}
+        </div>
+    {{end}}
+</div>
