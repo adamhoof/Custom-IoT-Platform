@@ -6,38 +6,64 @@
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
-void setup_wifi() {
-    delay(10);
+unsigned long lastMessageTime = 0;
+const long messageInterval = 2000;
+
+void setup_wifi()
+{
     Serial.print("Connecting to ");
     Serial.println(ssid);
-
     WiFi.begin(ssid, password);
+
     while (WiFiClass::status() != WL_CONNECTED) {
         delay(500);
         Serial.print(".");
     }
-
-    Serial.println("");
-    Serial.println("WiFi connected");
+    Serial.println("\nWiFi connected");
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
 }
 
-void reconnect_mqtt_mqttClient() {
+void mqttCallback(char* topic, byte* payload, unsigned int length)
+{
+    Serial.print("Message arrived on topic: ");
+    Serial.println(topic);
+    Serial.print("Message:");
+
+    // Create a character array to store the incoming payload data
+    char msg[length + 1];
+    strncpy(msg, (char*) payload, length);
+    msg[length] = '\0';  // Null-terminate the array
+    Serial.println(msg);
+
+    char expectedTopic[100];
+    sprintf(expectedTopic, "%s/%s", mqttClientId, "state");
+
+    if (strcmp(topic, expectedTopic) == 0) {
+        if (strcmp(msg, "LastValue") == 0) {
+            Serial.println("Turning sending last value");
+    }else if (strcmp(topic,login_response_topic) == 0){
+            char t[50];
+            sprintf(t, "%s/%s", mqttClientId, "state");
+            mqttClient.subscribe(t);
+        }}
+}
+
+void reconnect_mqtt()
+{
     while (!mqttClient.connected()) {
         Serial.print("Attempting MQTT connection...");
         if (mqttClient.connect(mqttClientId)) {
             Serial.println("connected");
+            StaticJsonDocument<200> loginDoc;
+            loginDoc["uuid"] = mqttClientId;
+            loginDoc["name"] = name;
+            loginDoc["device_type"] = deviceType;
 
-            StaticJsonDocument<200> doc;
-            doc["uuid"] = mqttClientId;
-            doc["name"] = name;
-            doc["device_type"] = deviceType;
+            char loginJsonBuffer[512];
+            serializeJson(loginDoc, loginJsonBuffer);
 
-            char jsonBuffer[512];
-            serializeJson(doc, jsonBuffer);
-
-            mqttClient.publish(login_request_topic, jsonBuffer);
+            mqttClient.publish(login_request_topic, loginJsonBuffer);
         } else {
             Serial.print("failed, rc=");
             Serial.print(mqttClient.state());
@@ -47,17 +73,46 @@ void reconnect_mqtt_mqttClient() {
     }
 }
 
-void setup() {
+void setup()
+{
     Serial.begin(115200);
     setup_wifi();
     mqttClient.setServer(mqtt_broker, mqtt_port);
-
-    reconnect_mqtt_mqttClient();
+    mqttClient.setCallback(mqttCallback);
+    reconnect_mqtt();
 }
 
-void loop() {
+void sendRandomValue()
+{
+    if (millis() - lastMessageTime > messageInterval) {
+        lastMessageTime = millis();
+
+        double randomValue = random(0, 100) / 1.0;
+        char topic[50];
+        sprintf(topic, "%s/%s", mqttClientId, "state");
+
+        StaticJsonDocument<200> stateDoc;
+        stateDoc["temperature"] = randomValue;
+
+        char stateJsonBuffer[512];
+        serializeJson(stateDoc, stateJsonBuffer);
+
+        while (!mqttClient.publish(topic, stateJsonBuffer)) {
+            delay(2000);
+            mqttClient.publish(topic, stateJsonBuffer);
+        }
+
+        Serial.print("Published random value: ");
+        Serial.println(randomValue);
+    }
+}
+
+void loop()
+{
     if (!mqttClient.connected()) {
-        reconnect_mqtt_mqttClient();
+        reconnect_mqtt();
     }
     mqttClient.loop();
+
+    sendRandomValue();
 }
