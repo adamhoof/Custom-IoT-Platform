@@ -77,7 +77,7 @@ func DeviceFeaturesHandler(w http.ResponseWriter, r *http.Request, database *db.
 		features = []string{"LastValue"}
 	}
 
-	t, err := template.ParseFiles("ui/html/device_features_template.html")
+	t, err := template.ParseFiles("ui/html/device_features_template.gohtml")
 	if err != nil {
 		fmt.Printf("error loading feature template %s\n", err)
 		http.Error(w, "Error loading feature template", http.StatusInternalServerError)
