@@ -10,20 +10,34 @@ import (
 	"strings"
 )
 
-func HandleHome(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles("ui/html/home.html")
+func HandleHome(w http.ResponseWriter, r *http.Request, database *db.Database) {
+	t, err := template.ParseFiles("ui/html/home.gohtml", "ui/html/dashboard_list.gohtml")
 	if err != nil {
+		fmt.Printf("error loading template %s\n", err)
 		http.Error(w, "Error loading template", http.StatusInternalServerError)
 		return
 	}
-	err = t.Execute(w, nil) // Pass nil or any actual data structure if needed
+
+	dashboards, err := database.FetchDashboards()
 	if err != nil {
-		http.Error(w, "Error executing template", http.StatusInternalServerError)
+		fmt.Printf("failed to fetch dashboards %s\n", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	err = t.Execute(w, map[string]interface{}{
+		"Dashboards": dashboards,
+	})
+	if err != nil {
+		fmt.Printf("failed to execute template %s\n", err)
+		http.Error(w, "Error executing template", http.StatusInternalServerError)
+		return
+	}
+
 }
 
 func DashboardCreatorHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
-	t, err := template.ParseFiles("ui/html/dashboard_creator.html")
+	t, err := template.ParseFiles("ui/html/dashboard_creator.gohtml")
 	if err != nil {
 		fmt.Printf("failed to load dashboard creator template %s\n", err)
 		http.Error(w, "Failed to load the dashboard creator template", http.StatusInternalServerError)
@@ -82,7 +96,7 @@ func DeviceFeaturesHandler(w http.ResponseWriter, r *http.Request, database *db.
 
 }
 
-func CreateDashboard(w http.ResponseWriter, r *http.Request, db *db.Database) {
+func CreateDashboardHandler(w http.ResponseWriter, r *http.Request, db *db.Database) {
 	// Parse the request form data
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Failed to parse form", http.StatusBadRequest)
@@ -129,6 +143,24 @@ func CreateDashboard(w http.ResponseWriter, r *http.Request, db *db.Database) {
 		return
 	}
 
-	// Redirect or update frontend as needed
-	fmt.Fprintln(w, "Dashboard saved successfully!") // Adjust based on your frontend needs
+	_, err = fmt.Fprintln(w, "Dashboard saved successfully!")
+	if err != nil {
+		return
+	}
+}
+
+func DashboardHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
+	dashboards, err := database.FetchDashboards()
+	if err != nil {
+		fmt.Printf("unable to fetch dashboards: %s\n", err)
+		http.Error(w, fmt.Sprintf("unable to fetch dashboards: %v", err), http.StatusInternalServerError)
+		return
+	}
+	t := template.Must(template.ParseFiles("ui/html/dashboard_list.gohtml"))
+	err = t.Execute(w, map[string]interface{}{
+		"Dashboards": dashboards,
+	})
+	if err != nil {
+		http.Error(w, "Failed to render template", http.StatusInternalServerError)
+	}
 }

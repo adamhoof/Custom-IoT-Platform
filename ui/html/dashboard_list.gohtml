@@ -1,0 +1,9 @@
+<ul class="nav flex-column" id="dashboardList">
+    {{range .Dashboards}}
+    <li class="nav-item">
+        <a class="nav-link" href="#" hx-get="/dashboard/{{.DashboardId}}" hx-target="#mainContent" hx-swap="outerHTML">
+            {{.Name}}
+        </a>
+    </li>
+    {{end}}
+</ul>

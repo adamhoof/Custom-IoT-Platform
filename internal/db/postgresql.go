@@ -123,5 +123,31 @@ func (db *Database) InsertDevicesToDashboard(dashboardID int, devices []model.De
 }
 
 func (db *Database) FetchDashboards() ([]model.Dashboard, error) {
-	return nil, nil
+	var dashboards []model.Dashboard
+
+	rows, err := db.Query(`SELECT dashboard_id, name FROM dashboard`)
+	if err != nil {
+		return nil, err // Return nil slice and the error
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+
+		}
+	}(rows)
+
+	for rows.Next() {
+		var d model.Dashboard
+		err := rows.Scan(&d.DashboardId, &d.Name)
+		if err != nil {
+			return nil, err
+		}
+		dashboards = append(dashboards, d)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return dashboards, nil
 }

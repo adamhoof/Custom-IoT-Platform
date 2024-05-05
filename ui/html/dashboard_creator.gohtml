@@ -1,17 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.4.1/dist/htmx.min.js"></script>
-</head>
-<body>
 <div>
     <h2>Dashboard Creator</h2>
     <form id="dashboardForm" hx-post="/create_dashboard">
-        <input type="text" name="dashboardName" placeholder="Enter Dashboard Name" required class="form-control mb-3">
+        <label>
+            <input type="text" name="dashboardName" placeholder="Enter Dashboard Name" required class="form-control mb-3">
+        </label>
         {{range .Devices}}
         <div class="card mb-3">
             <div class="card-body">
@@ -26,4 +18,3 @@
         <button type="submit" class="btn btn-success">Save Dashboard</button>
     </form>
 </div>
-</body>
