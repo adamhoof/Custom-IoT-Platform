@@ -111,7 +111,10 @@ func (db *Database) InsertDevicesToDashboard(dashboardID int, devices []model.De
 		_, err := tx.Exec(`INSERT INTO device_in_dashboard (device_id, dashboard_id, position_in_dashboard, shown_functionalities) VALUES ($1, $2, $3, $4)`,
 			device.Device.ID, dashboardID, device.Position, device.Functionalities)
 		if err != nil {
-			tx.Rollback()
+			err = tx.Rollback()
+			if err != nil {
+				return err
+			}
 			return err
 		}
 	}
@@ -214,4 +217,24 @@ func (db *Database) GetDeviceStateByID(id int) (state string, err error) {
 		return "", err
 	}
 	return state, nil
+}
+
+func (db *Database) UpdateDeviceState(uuid string, state string) error {
+	stmt, err := db.Prepare("UPDATE devices SET state = $1 WHERE uuid = $2")
+	if err != nil {
+		return err
+	}
+	defer func(stmt *sql.Stmt) {
+		err := stmt.Close()
+		if err != nil {
+
+		}
+	}(stmt)
+
+	// Execute the statement with the JSON payload
+	_, err = stmt.Exec(state, uuid)
+	if err != nil {
+		return err
+	}
+	return nil
 }

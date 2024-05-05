@@ -40,7 +40,7 @@ func setupMqttSubscriptionHandlers(client MQTT.Client, database *db.Database) er
 	}); token.Wait() && token.Error() != nil {
 		return fmt.Errorf("failed to subscribe to login topic: %v", token.Error())
 	}
-	if token := client.Subscribe(os.Getenv("MQTT_POST_TOPIC"), 1, mqtt_handlers.HandlePost); token.Wait() && token.Error() != nil {
+	if token := client.Subscribe(os.Getenv("MQTT_POST_TOPIC"), 1, func(client MQTT.Client, msg MQTT.Message) { mqtt_handlers.GetDeviceStateHandler(msg, database) }); token.Wait() && token.Error() != nil {
 		return fmt.Errorf("failed to subscribe to post topic: %v", token.Error())
 	}
 	return nil
