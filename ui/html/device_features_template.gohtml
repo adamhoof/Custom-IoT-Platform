@@ -1,6 +1,8 @@
 {{range .Features}}
 <div class="form-check">
-    <input class="form-check-input" type="checkbox" name="{{$.UUID}}" value="{{.}}">
+    <label>
+        <input class="form-check-input" type="checkbox" name="{{$.UUID}}" value="{{.}}">
+    </label>
     <label class="form-check-label">
         {{.}}
     </label>
