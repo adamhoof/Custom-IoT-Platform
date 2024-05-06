@@ -45,7 +45,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             messageInterval = newInterval;
             xSemaphoreGive(mutex);
         }
-    } else if (strcmp(topic, login_topic.c_str()) == 0) {
+    } else if (strcmp(topic, login_response_topic.c_str()) == 0) {
         mqttClient.subscribe(interval_change_topic.c_str());
     }
 }
@@ -64,8 +64,8 @@ void reconnect_mqtt()
             char loginJsonBuffer[512];
             serializeJson(loginDoc, loginJsonBuffer);
 
-            mqttClient.subscribe(login_topic.c_str());
-            mqttClient.publish(login_topic.c_str(), loginJsonBuffer);
+            mqttClient.subscribe(login_response_topic.c_str());
+            mqttClient.publish(login_request_topic.c_str(), loginJsonBuffer);
         } else {
             Serial.print("failed, rc=");
             Serial.print(mqttClient.state());
