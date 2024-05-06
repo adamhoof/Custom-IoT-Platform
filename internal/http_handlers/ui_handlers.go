@@ -136,6 +136,7 @@ func CreateDashboardHandler(w http.ResponseWriter, r *http.Request, db *db.Datab
 	var deviceEntries []model.DeviceInDashboard
 	position := 0
 
+	// Parse device actions from the form
 	for key, values := range r.Form {
 		if strings.HasPrefix(key, "device_action_") {
 			deviceIDStr := strings.TrimPrefix(key, "device_action_")
@@ -145,15 +146,19 @@ func CreateDashboardHandler(w http.ResponseWriter, r *http.Request, db *db.Datab
 				continue // Skip this iteration
 			}
 
-			functionalitiesJSON, err := json.Marshal(values)
-			if err != nil {
-				http.Error(w, "Error encoding functionalities", http.StatusInternalServerError)
-				return
+			actionsMap := make(map[string]string)
+			for _, val := range values {
+				parts := strings.SplitN(val, ":", 2)
+				if len(parts) != 2 {
+					http.Error(w, "Invalid action format", http.StatusBadRequest)
+					return
+				}
+				actionsMap[parts[0]] = parts[1]
 			}
 
 			deviceEntries = append(deviceEntries, model.DeviceInDashboard{
 				Device:       model.Device{ID: deviceID},
-				ShownActions: string(functionalitiesJSON),
+				ShownActions: actionsMap,
 				Position:     position,
 			})
 			position++
@@ -167,6 +172,7 @@ func CreateDashboardHandler(w http.ResponseWriter, r *http.Request, db *db.Datab
 	}
 
 	if err = db.InsertDevicesToDashboard(dashboardID, deviceEntries); err != nil {
+		fmt.Println(err)
 		http.Error(w, fmt.Sprintf("Failed to save devices: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -186,14 +192,12 @@ func DisplayDashboardHandler(w http.ResponseWriter, r *http.Request, database *d
 		return
 	}
 
-	name, devices, err := database.FetchDashboardContents(id)
+	devices, name, err := database.FetchDashboardContents(id)
 	if err != nil {
 		fmt.Printf("failed to fetch dashboard contents %s\n", err)
 		http.Error(w, "Failed to fetch dashboard contents", http.StatusInternalServerError)
 		return
 	}
-
-	fmt.Println(devices)
 
 	t, err := template.ParseFiles("ui/html/dashboard.gohtml")
 	if err != nil {
@@ -212,25 +216,3 @@ func DisplayDashboardHandler(w http.ResponseWriter, r *http.Request, database *d
 		return
 	}
 }
-
-/*func GetDeviceStateHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
-	stringId := r.PathValue("device_id")
-	id, err := strconv.Atoi(stringId)
-	if err != nil {
-		http.Error(w, "Invalid device ID", http.StatusBadRequest)
-		return
-	}
-
-	state, err := database.GetDeviceStateByID(id)
-	if err != nil {
-		http.Error(w, "Failed to fetch device state", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/plain") // Set content type as text/plain
-	_, err = w.Write([]byte(state))
-	if err != nil {
-		return
-	} // Write the state as plain text
-}
-*/

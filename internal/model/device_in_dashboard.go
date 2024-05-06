@@ -1,17 +1,12 @@
 package model
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 type DeviceInDashboard struct {
 	Device       Device
-	ShownActions string //json encoded string of functionalities
+	ShownActions map[string]string
 	Position     int
 }
 
-func (d *DeviceInDashboard) FunctionalitiesList() ([]string, error) {
+/*func (d *DeviceInDashboard) FunctionalitiesList() ([]string, error) {
 	var functionalities []string
 	err := json.Unmarshal([]byte(d.ShownActions), &functionalities)
 	if err != nil {
@@ -33,4 +28,4 @@ func (d *DeviceInDashboard) HasFunctionality(funcName string) bool {
 		}
 	}
 	return false
-}
+}*/

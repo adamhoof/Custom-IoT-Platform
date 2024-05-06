@@ -1,19 +1,25 @@
 <div id="dashboardContent">
-        <h2>{{.Name}}</h2>
+    <h2>{{.Name}}</h2>
     {{range .Devices}}
+        <h5>{{.Device.Name}}</h5>
         <div class="device-tile" id="device-{{.Device.ID}}">
-            <h3>{{.Device.Name}}</h3>
-            <!-- Check device type and conditionally render controls -->
-            {{if eq .Device.DeviceType "on_off"}}
-                {{if .HasFunctionality "On"}}
-                    <button hx-post="/device/{{.Device.ID}}/on" hx-target="#device-{{.Device.ID}}" hx-swap="outerHTML">On</button>
-                {{end}}
-                {{if .HasFunctionality "Off"}}
-                    <button hx-post="/device/{{.Device.ID}}/off" hx-target="#device-{{.Device.ID}}" hx-swap="outerHTML">Off</button>
-                {{end}}
-            {{else if eq .Device.DeviceType "single_metric_sensor"}}
-                {{if .HasFunctionality "LastValue"}}
-                    <div>Current Value: <span hx-get="/device/{{.Device.ID}}/state" hx-trigger="every 2s" hx-swap="innerHTML">{{.Device.State}}</span></div>
+            {{range $actionName, $actionType := .ShownActions}}
+                {{if eq $actionType "command"}}
+                    <button hx-post="/device/{{$.Device.ID}}/{{$actionName}}" hx-target="#device-{{$.Device.ID}}"
+                            hx-swap="outerHTML">{{$actionName}}</button>
+                {{else if eq $actionType "provide_value"}}
+                    <div>{{$actionName}}: <span hx-get="/device/{{$.Device.ID}}/{{$actionName}}" hx-trigger="every 2s"
+                                                hx-swap="innerHTML">[Value]</span></div>
+                {{else if eq $actionType "numberInput"}}
+                    <label>
+                        {{$actionName}}:
+                        <input type="number"
+                               name="{{$actionName}}"
+                               hx-post="/update_device/{{$.Device.ID}}"
+                               hx-trigger="change"
+                               hx-target="#device-{{$.Device.ID}}"
+                               hx-swap="outerHTML">
+                    </label>
                 {{end}}
             {{end}}
         </div>

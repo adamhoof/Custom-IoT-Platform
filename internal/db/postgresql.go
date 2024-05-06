@@ -3,6 +3,7 @@ package db
 import (
 	"NSI-semester-work/internal/model"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	_ "github.com/lib/pq"
@@ -162,19 +163,22 @@ func (db *Database) InsertDevicesToDashboard(dashboardId int, devices []model.De
 	}
 
 	for _, device := range devices {
-		_, err := tx.Exec(`INSERT INTO devices_in_dashboard (device_id, dashboard_id, position_in_dashboard,shown_actions) VALUES ($1, $2, $3, $4)`,
-			device.Device.ID, dashboardId, device.Position, device.ShownActions)
+		shownActionsJSON, err := json.Marshal(device.ShownActions)
 		if err != nil {
-			err = tx.Rollback()
-			if err != nil {
-				return err
-			}
-			return err
+			tx.Rollback() // Handle rollback in case of error
+			return fmt.Errorf("error marshaling shown actions: %v", err)
+		}
+
+		_, err = tx.Exec(`INSERT INTO devices_in_dashboard (device_id, dashboard_id, position_in_dashboard, shown_actions) VALUES ($1, $2, $3, $4)`,
+			device.Device.ID, dashboardId, device.Position, string(shownActionsJSON))
+		if err != nil {
+			tx.Rollback() // Handle rollback in case of error
+			return fmt.Errorf("error inserting device into dashboard: %v", err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return err
+		return fmt.Errorf("error committing transaction: %v", err)
 	}
 	return nil
 }
@@ -209,40 +213,6 @@ func (db *Database) FetchDashboards() ([]model.Dashboard, error) {
 	return dashboards, nil
 }
 
-func (db *Database) FetchDevicesInDashboard(dashboardId int) (devices []model.DeviceInDashboard, err error) {
-	rows, err := db.Query(`
-			SELECT  devices.device_id, position_in_dashboard, shown_actions, devices.device_name, action_templates.device_type
-			FROM devices_in_dashboard join devices on devices.device_id = devices_in_dashboard.device_id join action_templates on devices.action_template_id = action_templates.action_template_id
-			WHERE dashboard_id = $1
-			ORDER BY position_in_dashboard`, dashboardId)
-
-	if err != nil {
-		return nil, err
-	}
-	defer func(rows *sql.Rows) {
-		err := rows.Close()
-		if err != nil {
-
-		}
-	}(rows)
-
-	// Iterate over the rows in the result set
-	for rows.Next() {
-		var device model.DeviceInDashboard
-		err := rows.Scan(&device.Device.ID, &device.Position, &device.ShownActions, &device.Device.Name, &device.Device.DeviceType)
-		if err != nil {
-			return nil, err
-		}
-		devices = append(devices, device)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return devices, nil
-}
-
 func (db *Database) FetchDashboardName(dashboardId int) (name string, err error) {
 	err = db.QueryRow(`SELECT name FROM dashboards where dashboard_id = $1`, dashboardId).Scan(&name)
 	if err != nil {
@@ -251,18 +221,47 @@ func (db *Database) FetchDashboardName(dashboardId int) (name string, err error)
 	return name, nil
 }
 
-func (db *Database) FetchDashboardContents(dashboardId int) (name string, devices []model.DeviceInDashboard, err error) {
-	name, err = db.FetchDashboardName(dashboardId)
+func (db *Database) FetchDashboardContents(dashboardID int) ([]model.DeviceInDashboard, string, error) {
+	var devices []model.DeviceInDashboard
+	var dashboardName string
+
+	query := `
+    SELECT d.device_id, d.device_name, did.shown_actions, did.position_in_dashboard, dash.name
+    FROM devices_in_dashboard did
+    JOIN devices d ON did.device_id = d.device_id
+    JOIN dashboards dash ON did.dashboard_id = dash.dashboard_id
+    WHERE did.dashboard_id = $1
+    ORDER BY did.position_in_dashboard
+    `
+	rows, err := db.Query(query, dashboardID)
 	if err != nil {
-		fmt.Printf("unable to fetch name %s\n", err)
+		return nil, "", fmt.Errorf("error querying database: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var device model.DeviceInDashboard
+		var shownActionsJSON string // This holds the JSON string from the database
+
+		if err := rows.Scan(&device.Device.ID, &device.Device.Name, &shownActionsJSON, &device.Position, &dashboardName); err != nil {
+			return nil, "", fmt.Errorf("error scanning row: %v", err)
+		}
+
+		// Initialize the map to store action name to action type mappings
+		device.ShownActions = make(map[string]string)
+		// Unmarshal the JSON string into the map
+		if err := json.Unmarshal([]byte(shownActionsJSON), &device.ShownActions); err != nil {
+			return nil, "", fmt.Errorf("error unmarshaling JSON: %v", err)
+		}
+
+		devices = append(devices, device)
 	}
 
-	devices, err = db.FetchDevicesInDashboard(dashboardId)
-	if err != nil {
-		fmt.Printf("unable to fetch devices %s\n", err)
-		return "", nil, err
+	if err = rows.Err(); err != nil {
+		return nil, "", fmt.Errorf("error processing rows: %v", err)
 	}
-	return name, devices, nil
+
+	return devices, dashboardName, nil
 }
 
 func (db *Database) FetchTemplateActions(deviceType model.DeviceType) (actionTemplateId int, err error) {
@@ -279,32 +278,3 @@ func (db *Database) FetchTemplateActions(deviceType model.DeviceType) (actionTem
 
 	return actionTemplateId, nil
 }
-
-/*func (db *Database) GetDeviceStateByID(id int) (state string, err error) {
-	err = db.QueryRow("SELECT state FROM devices WHERE device_id = $1", id).Scan(&state)
-	if err != nil {
-		return "", err
-	}
-	return state, nil
-}*/
-
-/*func (db *Database) UpdateDeviceState(uuid string, state string) error {
-	stmt, err := db.Prepare("UPDATE devices SET state = $1 WHERE uuid = $2")
-	if err != nil {
-		return err
-	}
-	defer func(stmt *sql.Stmt) {
-		err := stmt.Close()
-		if err != nil {
-
-		}
-	}(stmt)
-
-	// Execute the statement with the JSON payload
-	_, err = stmt.Exec(state, uuid)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-*/
