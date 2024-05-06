@@ -79,40 +79,6 @@ func (db *Database) FetchDeviceNamesAndIds() (devices []model.Device, err error)
 	return devices, nil
 }
 
-func (db *Database) FetchDevicesWithActions() (devices []model.Device, err error) {
-	rows, err := db.Query(`
-			SELECT devices.device_id, uuid, device_name, actions, coalesce(custom_actions, '{}')
-			FROM devices
-			JOIN action_templates ON devices.action_template_id = action_templates.action_template_id
-		`)
-	if err != nil {
-		return nil, err
-	}
-	defer func(rows *sql.Rows) {
-		err = rows.Close()
-		if err != nil {
-
-		}
-	}(rows)
-
-	for rows.Next() {
-		var device model.Device
-		var templateActions, customActions sql.NullString
-		if err = rows.Scan(&device.ID, &device.UUID, &device.Name, &templateActions, &customActions); err != nil {
-			return nil, err
-		}
-		device.TemplateActions = templateActions.String
-		device.CustomActions = customActions.String
-		devices = append(devices, device)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return devices, nil
-}
-
 func (db *Database) FetchDeviceWithActions(deviceId int) (*model.Device, error) {
 	query := `
 		SELECT devices.device_id, devices.device_name, action_templates.actions, COALESCE(devices.custom_actions, '{}')
@@ -136,16 +102,6 @@ func (db *Database) FetchDeviceWithActions(deviceId int) (*model.Device, error) 
 	device.CustomActions = customActions.String
 
 	return &device, nil
-}
-
-// GetDeviceIDByUUID returns the database ID for a given device Id.
-func (db *Database) GetDeviceIDByUUID(uuid string) (int, error) {
-	var deviceID int
-	err := db.QueryRow("SELECT device_id FROM devices WHERE uuid = $1", uuid).Scan(&deviceID)
-	if err != nil {
-		return 0, err
-	}
-	return deviceID, nil
 }
 
 func (db *Database) CreateDashboard(name string) (dashboardId int, err error) {
@@ -211,14 +167,6 @@ func (db *Database) FetchDashboards() ([]model.Dashboard, error) {
 	}
 
 	return dashboards, nil
-}
-
-func (db *Database) FetchDashboardName(dashboardId int) (name string, err error) {
-	err = db.QueryRow(`SELECT name FROM dashboards where dashboard_id = $1`, dashboardId).Scan(&name)
-	if err != nil {
-		return "", err
-	}
-	return name, nil
 }
 
 func (db *Database) FetchDashboardContents(dashboardID int) ([]model.DeviceInDashboard, string, error) {

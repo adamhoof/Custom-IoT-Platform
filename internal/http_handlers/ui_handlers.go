@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-func HandleHome(w http.ResponseWriter, database *db.Database) {
+func HomeHandler(w http.ResponseWriter, database *db.Database) {
 	t, err := template.ParseFiles("ui/html/home.gohtml", "ui/html/dashboard_list.gohtml")
 	if err != nil {
 		fmt.Printf("error loading template %s\n", err)

@@ -51,7 +51,7 @@ func setupHttpServer(database *db.Database) error {
 	port := os.Getenv("HTTP_SERVER_PORT")
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { http_handlers.HandleHome(w, database) })
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { http_handlers.HomeHandler(w, database) })
 	mux.HandleFunc("/dashboard_creator", func(w http.ResponseWriter, r *http.Request) { http_handlers.DashboardCreatorHandler(w, database) })
 	mux.HandleFunc("/device_features/{id}", func(w http.ResponseWriter, r *http.Request) { http_handlers.DeviceFeaturesHandler(w, r, database) })
 	mux.HandleFunc("/create_dashboard", func(w http.ResponseWriter, r *http.Request) { http_handlers.CreateDashboardHandler(w, r, database) })
