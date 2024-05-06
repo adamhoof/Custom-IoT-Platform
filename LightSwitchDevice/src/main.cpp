@@ -6,7 +6,32 @@
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
-void setup_wifi() {
+void mqttCallback(char* topic, byte* payload, unsigned int length)
+{
+    Serial.print("Message arrived on topic: ");
+    Serial.println(topic);
+    Serial.print("Message: ");
+
+    char msg[length + 1];
+    strncpy(msg, (char*) payload, length);
+    msg[length] = '\0';
+    Serial.println(msg);
+
+    if (strcmp(topic, command_topic.c_str()) == 0) {
+        if (strcmp(msg, "On") == 0) {
+            Serial.println("Device turned ON");
+        }
+    } else if (strcmp(msg, "Off") == 0) {
+        Serial.println("Device turned OFF");
+    } else if (strcmp(topic, login_response_topic.c_str()) == 0) {
+        mqttClient.subscribe(command_topic.c_str());
+        Serial.println("subscribed");
+    }
+}
+
+
+void setup_wifi()
+{
     delay(10);
     Serial.print("Connecting to ");
     Serial.println(ssid);
@@ -23,7 +48,8 @@ void setup_wifi() {
     Serial.println(WiFi.localIP());
 }
 
-void reconnect_mqtt_mqttClient() {
+void reconnect_mqtt_mqttClient()
+{
     while (!mqttClient.connected()) {
         Serial.print("Attempting MQTT connection...");
         if (mqttClient.connect(mqttClientId)) {
@@ -37,7 +63,8 @@ void reconnect_mqtt_mqttClient() {
             char jsonBuffer[512];
             serializeJson(doc, jsonBuffer);
 
-            mqttClient.publish(login_request_topic, jsonBuffer);
+            mqttClient.subscribe(login_response_topic.c_str());
+            mqttClient.publish(login_request_topic.c_str(), jsonBuffer);
         } else {
             Serial.print("failed, rc=");
             Serial.print(mqttClient.state());
@@ -47,15 +74,18 @@ void reconnect_mqtt_mqttClient() {
     }
 }
 
-void setup() {
+void setup()
+{
     Serial.begin(115200);
     setup_wifi();
     mqttClient.setServer(mqtt_broker, mqtt_port);
+    mqttClient.setCallback(mqttCallback);
 
     reconnect_mqtt_mqttClient();
 }
 
-void loop() {
+void loop()
+{
     if (!mqttClient.connected()) {
         reconnect_mqtt_mqttClient();
     }
