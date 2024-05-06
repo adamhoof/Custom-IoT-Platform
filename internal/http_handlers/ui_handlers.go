@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -44,7 +45,7 @@ func DashboardCreatorHandler(w http.ResponseWriter, database *db.Database) {
 		http.Error(w, "Failed to load the dashboard creator template", http.StatusInternalServerError)
 		return
 	}
-	devices, err := database.FetchDevices()
+	devices, err := database.FetchDeviceNamesAndIds()
 	if err != nil {
 		fmt.Println("failed to fetch devices")
 		http.Error(w, "Failed to fetch devices", http.StatusInternalServerError)
@@ -59,79 +60,104 @@ func DashboardCreatorHandler(w http.ResponseWriter, database *db.Database) {
 	}
 }
 
-func DeviceFeaturesHandler(w http.ResponseWriter, r *http.Request) {
-	deviceType := ""
-	uuid := ""
-	query := r.URL.Query()
-	if deviceTypeParam, ok := query["deviceType"]; ok {
-		deviceType = strings.Split(deviceTypeParam[0], "=")[0]
+func parseJSONActions(templateActionsStr, customActionsStr string) (map[string]interface{}, map[string]interface{}, error) {
+	var templateActions, customActions map[string]interface{}
+	if err := json.Unmarshal([]byte(templateActionsStr), &templateActions); err != nil {
+		return nil, nil, err
 	}
-	if uuidParam, ok := query["uuid"]; ok {
-		uuid = strings.Split(uuidParam[0], "=")[0]
+	if err := json.Unmarshal([]byte(customActionsStr), &customActions); err != nil {
+		return nil, nil, err
+	}
+	return templateActions, customActions, nil
+}
+
+func DeviceFeaturesHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
+	stringId := r.PathValue("id")
+	if stringId == "" {
+		http.Error(w, "Device ID parameter is missing", http.StatusBadRequest)
+		return
 	}
 
-	var features []string
-	switch deviceType {
-	case model.DeviceTypeOnOffDevice.String():
-		features = []string{"On", "Off"}
-	case model.DeviceTypeSingleMetricSensor.String():
-		features = []string{"LastValue"}
+	deviceId, err := strconv.Atoi(stringId)
+	if err != nil {
+		http.Error(w, "Invalid device ID", http.StatusBadRequest)
+		return
+	}
+
+	device, err := database.FetchDeviceWithActions(deviceId) // Make sure this function name matches the actual function
+	if err != nil {
+		log.Printf("error fetching device with actions: %s", err)
+		http.Error(w, "Failed to fetch device details", http.StatusInternalServerError)
+		return
 	}
 
 	t, err := template.ParseFiles("ui/html/device_features_template.gohtml")
 	if err != nil {
-		fmt.Printf("error loading feature template %s\n", err)
+		log.Printf("error loading feature template: %s", err)
 		http.Error(w, "Error loading feature template", http.StatusInternalServerError)
 		return
 	}
 
-	data := map[string]interface{}{
-		"Features": features,
-		"UUID":     uuid,
-	}
-	if err := t.Execute(w, data); err != nil {
-		fmt.Printf("error executing feature template %s\n", err)
-		http.Error(w, "Error executing feature template", http.StatusInternalServerError)
+	templateActions, customActions, err := parseJSONActions(device.TemplateActions, device.CustomActions)
+	if err != nil {
+		log.Printf("error parsing actions: %s", err)
+		http.Error(w, "Failed to parse actions", http.StatusInternalServerError)
 		return
 	}
 
+	data := map[string]interface{}{
+		"template_actions": templateActions,
+		"custom_actions":   customActions,
+		"id":               device.ID,
+	}
+
+	if err := t.Execute(w, data); err != nil {
+		log.Printf("error executing feature template: %s", err)
+		http.Error(w, "Error executing feature template", http.StatusInternalServerError)
+		return
+	}
 }
 
 func CreateDashboardHandler(w http.ResponseWriter, r *http.Request, db *db.Database) {
-	// Parse the request form data
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Failed to parse form", http.StatusBadRequest)
 		return
 	}
 	fmt.Println("Form data:", r.Form)
 
-	// Extract and validate dashboard name
 	dashboardName := r.FormValue("dashboardName")
 	if dashboardName == "" {
 		http.Error(w, "Dashboard name is required", http.StatusBadRequest)
 		return
 	}
 
-	// Remove the dashboardName key from the form to process device entries
 	r.Form.Del("dashboardName")
 
 	var deviceEntries []model.DeviceInDashboard
 	position := 0
-	for key, values := range r.Form {
-		// Encode functionalities into a JSON string
-		functionalitiesJSON, err := json.Marshal(values)
-		if err != nil {
-			http.Error(w, "Error encoding functionalities", http.StatusInternalServerError)
-			return
-		}
 
-		deviceID, err := db.GetDeviceIDByUUID(key)
-		deviceEntries = append(deviceEntries, model.DeviceInDashboard{
-			Device:          model.Device{ID: deviceID},
-			Functionalities: string(functionalitiesJSON),
-			Position:        position,
-		})
-		position++
+	for key, values := range r.Form {
+		if strings.HasPrefix(key, "device_action_") {
+			deviceIDStr := strings.TrimPrefix(key, "device_action_")
+			deviceID, err := strconv.Atoi(deviceIDStr)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Invalid device ID %s: %v", deviceIDStr, err), http.StatusBadRequest)
+				continue // Skip this iteration
+			}
+
+			functionalitiesJSON, err := json.Marshal(values)
+			if err != nil {
+				http.Error(w, "Error encoding functionalities", http.StatusInternalServerError)
+				return
+			}
+
+			deviceEntries = append(deviceEntries, model.DeviceInDashboard{
+				Device:       model.Device{ID: deviceID},
+				ShownActions: string(functionalitiesJSON),
+				Position:     position,
+			})
+			position++
+		}
 	}
 
 	dashboardID, err := db.CreateDashboard(dashboardName)
@@ -139,6 +165,7 @@ func CreateDashboardHandler(w http.ResponseWriter, r *http.Request, db *db.Datab
 		http.Error(w, fmt.Sprintf("Failed to create dashboard: %v", err), http.StatusInternalServerError)
 		return
 	}
+
 	if err = db.InsertDevicesToDashboard(dashboardID, deviceEntries); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to save devices: %v", err), http.StatusInternalServerError)
 		return
@@ -146,7 +173,7 @@ func CreateDashboardHandler(w http.ResponseWriter, r *http.Request, db *db.Datab
 
 	_, err = fmt.Fprintln(w, "Dashboard saved successfully!")
 	if err != nil {
-		return
+		http.Error(w, "Failed to send confirmation: "+err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -186,7 +213,7 @@ func DisplayDashboardHandler(w http.ResponseWriter, r *http.Request, database *d
 	}
 }
 
-func GetDeviceStateHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
+/*func GetDeviceStateHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
 	stringId := r.PathValue("device_id")
 	id, err := strconv.Atoi(stringId)
 	if err != nil {
@@ -206,3 +233,4 @@ func GetDeviceStateHandler(w http.ResponseWriter, r *http.Request, database *db.
 		return
 	} // Write the state as plain text
 }
+*/

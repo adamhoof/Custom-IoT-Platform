@@ -2,18 +2,22 @@
     <h2>Dashboard Creator</h2>
     <form id="dashboardForm" hx-post="/create_dashboard">
         <label>
-            <input type="text" name="dashboardName" placeholder="Enter Dashboard Name" required class="form-control mb-3">
+            <input type="text" name="dashboardName" placeholder="Enter Dashboard Name" required
+                   class="form-control mb-3">
         </label>
         {{range .Devices}}
-        <div class="card mb-3">
-            <div class="card-body">
-                <h5 class="card-title" hx-get="/device_features" hx-vals='{"deviceType": "{{.DeviceType.String}}", "uuid": "{{.UUID}}"}'
-                    hx-target="#device{{.UUID}}" hx-trigger="click">
-                    {{.Name}}
-                </h5>
-                <div id="device{{.UUID}}"></div>
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title" style="cursor: pointer;"
+                        hx-get="/device_features/{{.ID}}"
+                        hx-target="#device{{.ID}}"
+                        hx-trigger="click"
+                        hx-swap="innerHTML">
+                        {{.Name}}
+                    </h5>
+                    <div id="device{{.ID}}"></div> <!-- Actions will load here -->
+                </div>
             </div>
-        </div>
         {{end}}
         <button type="submit" class="btn btn-success">Save Dashboard</button>
     </form>

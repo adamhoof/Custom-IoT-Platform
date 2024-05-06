@@ -1,10 +1,33 @@
-{{range .Features}}
-<div class="form-check">
-    <label>
-        <input class="form-check-input" type="checkbox" name="{{$.UUID}}" value="{{.}}">
-    </label>
-    <label class="form-check-label">
-        {{.}}
-    </label>
+<div>
+    <h6>Template Actions</h6>
+    {{if len .template_actions}}
+        {{range $key, $value := .template_actions}}
+            <div class="form-check">
+                <label>
+                    <input class="form-check-input" type="checkbox" name="device_action_{{$.id}}" value="{{$key}}:{{$value}}">
+                </label>
+                <label class="form-check-label">
+                    {{$key}} ({{$value}})
+                </label>
+            </div>
+        {{end}}
+    {{else}}
+        <p>No template actions available.</p>
+    {{end}}
+
+    <h6>Custom Actions</h6>
+    {{if len .custom_actions}}
+        {{range $key, $value := .custom_actions}}
+            <div class="form-check">
+                <label>
+                    <input class="form-check-input" type="checkbox" name="device_action_{{$.id}}" value="{{$key}}:{{$value}}">
+                </label>
+                <label class="form-check-label">
+                    {{$key}} ({{$value}})
+                </label>
+            </div>
+        {{end}}
+    {{else}}
+        <p>No custom actions available.</p>
+    {{end}}
 </div>
-{{end}}

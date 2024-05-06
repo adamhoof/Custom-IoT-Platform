@@ -6,15 +6,14 @@ import (
 )
 
 type DeviceInDashboard struct {
-	Device          Device
-	Functionalities string //json encoded string of functionalities
-	Position        int
-	State           string
+	Device       Device
+	ShownActions string //json encoded string of functionalities
+	Position     int
 }
 
 func (d *DeviceInDashboard) FunctionalitiesList() ([]string, error) {
 	var functionalities []string
-	err := json.Unmarshal([]byte(d.Functionalities), &functionalities)
+	err := json.Unmarshal([]byte(d.ShownActions), &functionalities)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling functionalities: %w", err)
 	}
