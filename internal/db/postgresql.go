@@ -266,3 +266,14 @@ func (db *Database) GetLastSensorValue(deviceId int, actionName string) (value s
 	}
 	return value, nil
 }
+
+func (db *Database) GetDeviceUUID(deviceId int) (uuid string, err error) {
+	query := `SELECT uuid FROM devices WHERE device_id = $1`
+
+	err = db.QueryRow(query, deviceId).Scan(&uuid)
+	if err != nil {
+		return "", fmt.Errorf("error fetching UUID for device ID %d: %v", deviceId, err)
+	}
+
+	return uuid, nil
+}

@@ -46,7 +46,7 @@ func setupMqttSubscriptionHandlers(client MQTT.Client, database *db.Database) er
 	return nil
 }
 
-func setupHttpServer(database *db.Database) error {
+func setupHttpServer(database *db.Database, mqttClient MQTT.Client) error {
 	serverHostname := os.Getenv("HTTP_SERVER_HOST")
 	port := os.Getenv("HTTP_SERVER_PORT")
 
@@ -56,9 +56,10 @@ func setupHttpServer(database *db.Database) error {
 	mux.HandleFunc("/device_features/{id}", func(w http.ResponseWriter, r *http.Request) { http_handlers.DeviceFeaturesHandler(w, r, database) })
 	mux.HandleFunc("/create_dashboard", func(w http.ResponseWriter, r *http.Request) { http_handlers.CreateDashboardHandler(w, r, database) })
 	mux.HandleFunc("/dashboard/{id}", func(w http.ResponseWriter, r *http.Request) { http_handlers.DisplayDashboardHandler(w, r, database) })
-	/*mux.HandleFunc("/device/{device_id}/on", func(w http.ResponseWriter, r *http.Request) { http_handlers.SendOnCommandHandler(w, r, database) })
-	mux.HandleFunc("/device/{device_id}/off", func(w http.ResponseWriter, r *http.Request) { http_handlers.SendOffCommandHandler(w, r, database) })*/
-	mux.HandleFunc("/device/{device_id}/{action_name}", func(w http.ResponseWriter, r *http.Request) { http_handlers.GetLastSensorValueHandler(w, r, database) })
+	mux.HandleFunc("/device/{device_id}/command/{action_name}", func(w http.ResponseWriter, r *http.Request) {
+		http_handlers.SendCommandHandler(w, r, mqttClient, database)
+	})
+	mux.HandleFunc("/device/{device_id}/provide_value/{action_name}", func(w http.ResponseWriter, r *http.Request) { http_handlers.GetLastSensorValueHandler(w, r, database) })
 
 	fmt.Printf("starting HTTP server: http://%s:%s\n", serverHostname, port)
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%s", serverHostname, port), mux); err != nil {
@@ -96,7 +97,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err = setupHttpServer(database); err != nil {
+	if err = setupHttpServer(database, mqttClient); err != nil {
 		log.Fatal(err)
 	}
 }

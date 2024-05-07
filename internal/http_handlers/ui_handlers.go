@@ -5,9 +5,11 @@ import (
 	"NSI-semester-work/internal/model"
 	"encoding/json"
 	"fmt"
+	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -184,8 +186,8 @@ func CreateDashboardHandler(w http.ResponseWriter, r *http.Request, db *db.Datab
 }
 
 func DisplayDashboardHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
-	stringId := r.PathValue("id")
-	id, err := strconv.Atoi(stringId)
+	deviceIdStr := r.PathValue("id")
+	id, err := strconv.Atoi(deviceIdStr)
 	if err != nil {
 		fmt.Printf("error converting string id to int %s\n", err)
 		http.Error(w, "Invalid dashboard ID", http.StatusBadRequest)
@@ -218,18 +220,17 @@ func DisplayDashboardHandler(w http.ResponseWriter, r *http.Request, database *d
 }
 
 func GetLastSensorValueHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
-
-	deviceId := r.PathValue("device_id")
+	deviceIdStr := r.PathValue("device_id")
 	actionName := r.PathValue("action_name")
 
-	deviceIDInt, err := strconv.Atoi(deviceId)
+	deviceId, err := strconv.Atoi(deviceIdStr)
 	if err != nil {
 		http.Error(w, "Invalid device ID", http.StatusBadRequest)
 		return
 	}
 
 	// Query the last value for the specified device and action
-	value, err := database.GetLastSensorValue(deviceIDInt, actionName)
+	value, err := database.GetLastSensorValue(deviceId, actionName)
 	if err != nil {
 		http.Error(w, "Error fetching sensor value: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -240,4 +241,19 @@ func GetLastSensorValueHandler(w http.ResponseWriter, r *http.Request, database 
 	if err := json.NewEncoder(w).Encode(value); err != nil {
 		http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
 	}
+}
+
+func SendCommandHandler(w http.ResponseWriter, r *http.Request, mqttClient MQTT.Client, database *db.Database) {
+	deviceIdStr := r.PathValue("device_id")
+	actionName := r.PathValue("action_name")
+
+	deviceId, err := strconv.Atoi(deviceIdStr)
+	if err != nil {
+		http.Error(w, "Invalid device ID", http.StatusBadRequest)
+		return
+	}
+
+	deviceUuid, err := database.GetDeviceUUID(deviceId)
+
+	mqttClient.Publish(fmt.Sprintf("%s%s", os.Getenv("MQTT_COMMAND_TOPIC"), deviceUuid), 0, false, actionName)
 }

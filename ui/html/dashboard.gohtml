@@ -6,21 +6,26 @@
         <div class="device-tile" id="device-{{$deviceID}}">
             {{range $actionName, $actionType := .ShownActions}}
                 {{if eq $actionType "command"}}
-                    <button hx-post="/device/{{$deviceID}}/{{$actionName}}" hx-target="#device-{{$deviceID}}"
-                            hx-swap="outerHTML">{{$actionName}}</button>
+                    <div>Command
+                        <button hx-post="/device/{{$deviceID}}/command/{{$actionName}}"
+                                hx-swap="none">{{$actionName}}</button>
+                    </div>
                 {{else if eq $actionType "provide_value"}}
-                    <div>{{$actionName}}: <span hx-get="/device/{{$deviceID}}/{{$actionName}}" hx-trigger="every 2s"
+                    <div>{{$actionName}}: <span hx-get="/device/{{$deviceID}}/provide_value/{{$actionName}}"
+                                                hx-trigger="every 15s"
                                                 hx-swap="innerHTML">[Value]</span></div>
                 {{else if eq $actionType "numberInput"}}
-                    <label>
-                        {{$actionName}}:
-                        <input type="number"
-                               name="{{$actionName}}"
-                               hx-post="/update_device/{{$deviceID}}"
-                               hx-trigger="change"
-                               hx-target="#device-{{$deviceID}}"
-                               hx-swap="outerHTML">
-                    </label>
+                    <div>
+                        <label>
+                            {{$actionName}}:
+                            <input type="number"
+                                   name="{{$actionName}}"
+                                   hx-post="/update_device/{{$deviceID}}"
+                                   hx-trigger="change"
+                                   hx-target="#device-{{$deviceID}}"
+                                   hx-swap="outerHTML">
+                        </label>
+                    </div>
                 {{end}}
             {{end}}
         </div>
