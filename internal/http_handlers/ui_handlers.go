@@ -216,3 +216,28 @@ func DisplayDashboardHandler(w http.ResponseWriter, r *http.Request, database *d
 		return
 	}
 }
+
+func GetLastSensorValueHandler(w http.ResponseWriter, r *http.Request, database *db.Database) {
+
+	deviceId := r.PathValue("device_id")
+	actionName := r.PathValue("action_name")
+
+	deviceIDInt, err := strconv.Atoi(deviceId)
+	if err != nil {
+		http.Error(w, "Invalid device ID", http.StatusBadRequest)
+		return
+	}
+
+	// Query the last value for the specified device and action
+	value, err := database.GetLastSensorValue(deviceIDInt, actionName)
+	if err != nil {
+		http.Error(w, "Error fetching sensor value: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Println(value)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(value); err != nil {
+		http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
+	}
+}

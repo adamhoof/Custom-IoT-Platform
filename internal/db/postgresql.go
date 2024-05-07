@@ -121,14 +121,20 @@ func (db *Database) InsertDevicesToDashboard(dashboardId int, devices []model.De
 	for _, device := range devices {
 		shownActionsJSON, err := json.Marshal(device.ShownActions)
 		if err != nil {
-			tx.Rollback() // Handle rollback in case of error
+			err := tx.Rollback()
+			if err != nil {
+				return err
+			} // Handle rollback in case of error
 			return fmt.Errorf("error marshaling shown actions: %v", err)
 		}
 
 		_, err = tx.Exec(`INSERT INTO devices_in_dashboard (device_id, dashboard_id, position_in_dashboard, shown_actions) VALUES ($1, $2, $3, $4)`,
 			device.Device.ID, dashboardId, device.Position, string(shownActionsJSON))
 		if err != nil {
-			tx.Rollback() // Handle rollback in case of error
+			err := tx.Rollback()
+			if err != nil {
+				return err
+			} // Handle rollback in case of error
 			return fmt.Errorf("error inserting device into dashboard: %v", err)
 		}
 	}
@@ -185,7 +191,12 @@ func (db *Database) FetchDashboardContents(dashboardID int) ([]model.DeviceInDas
 	if err != nil {
 		return nil, "", fmt.Errorf("error querying database: %v", err)
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+
+		}
+	}(rows)
 
 	for rows.Next() {
 		var device model.DeviceInDashboard
@@ -225,4 +236,33 @@ func (db *Database) FetchTemplateActions(deviceType model.DeviceType) (actionTem
 	}
 
 	return actionTemplateId, nil
+}
+
+func (db *Database) GetDeviceIDByUUID(uuid string) (int, error) {
+	var deviceID int
+	err := db.QueryRow("SELECT device_id FROM devices WHERE uuid = $1", uuid).Scan(&deviceID)
+	if err != nil {
+		return 0, err
+	}
+	return deviceID, nil
+}
+
+func (db *Database) InsertProvidedValue(deviceId int, jsonData string) error {
+	sqlStatement := `INSERT INTO sensor_data (device_id, data) VALUES ($1, $2::jsonb)`
+	_, err := db.Exec(sqlStatement, deviceId, jsonData)
+	if err != nil {
+		return fmt.Errorf("error executing insert statement: %v", err)
+	}
+
+	return nil
+}
+
+func (db *Database) GetLastSensorValue(deviceId int, actionName string) (value string, err error) {
+	query := `SELECT data->>$1 AS value FROM sensor_data WHERE device_id = $2 ORDER BY timestamp DESC LIMIT 1`
+	row := db.QueryRow(query, actionName, deviceId)
+	err = row.Scan(&value)
+	if err != nil {
+		return "", err
+	}
+	return value, nil
 }

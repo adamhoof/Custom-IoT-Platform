@@ -40,7 +40,7 @@ func setupMqttSubscriptionHandlers(client MQTT.Client, database *db.Database) er
 	}); token.Wait() && token.Error() != nil {
 		return fmt.Errorf("failed to subscribe to login topic: %v", token.Error())
 	}
-	if token := client.Subscribe("provide_value/+", 1, func(client MQTT.Client, msg MQTT.Message) { mqtt_handlers.GetDeviceStateHandler(msg, database) }); token.Wait() && token.Error() != nil {
+	if token := client.Subscribe("provide_value/+", 1, func(client MQTT.Client, msg MQTT.Message) { mqtt_handlers.ValueProvidedHandler(msg, database) }); token.Wait() && token.Error() != nil {
 		return fmt.Errorf("failed to subscribe to post topic: %v", token.Error())
 	}
 	return nil
@@ -58,7 +58,7 @@ func setupHttpServer(database *db.Database) error {
 	mux.HandleFunc("/dashboard/{id}", func(w http.ResponseWriter, r *http.Request) { http_handlers.DisplayDashboardHandler(w, r, database) })
 	/*mux.HandleFunc("/device/{device_id}/on", func(w http.ResponseWriter, r *http.Request) { http_handlers.SendOnCommandHandler(w, r, database) })
 	mux.HandleFunc("/device/{device_id}/off", func(w http.ResponseWriter, r *http.Request) { http_handlers.SendOffCommandHandler(w, r, database) })*/
-	/*mux.HandleFunc("/device/{device_id}/state", func(w http.ResponseWriter, r *http.Request) { http_handlers.GetDeviceStateHandler(w, r, database) })*/
+	mux.HandleFunc("/device/{device_id}/{action_name}", func(w http.ResponseWriter, r *http.Request) { http_handlers.GetLastSensorValueHandler(w, r, database) })
 
 	fmt.Printf("starting HTTP server: http://%s:%s\n", serverHostname, port)
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%s", serverHostname, port), mux); err != nil {

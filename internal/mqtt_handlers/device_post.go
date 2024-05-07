@@ -3,27 +3,35 @@ package mqtt_handlers
 import (
 	"NSI-semester-work/internal/db"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
+	"log"
+	"strings"
 )
 
-func GetDeviceStateHandler(msg MQTT.Message, database *db.Database) {
-	/*	topic := msg.Topic()
-		log.Printf("Message received on topic: %s", topic)
+func ValueProvidedHandler(msg MQTT.Message, database *db.Database) {
+	topic := msg.Topic()
+	log.Printf("Message received on topic: %s", topic)
 
-		if strings.Contains(topic, "/state") {
-			parts := strings.Split(topic, "/state")
-			if len(parts) < 1 {
-				log.Println("Invalid topic format")
-				return
-			}
-			uuid := parts[0]
+	// Assume topic structure is "provide_value/<device_uuid>"
+	parts := strings.Split(topic, "/")
+	if len(parts) != 2 {
+		log.Println("Invalid topic format")
+		return
+	}
+	uuid := parts[1]
 
-			payloadStr := string(msg.Payload())
+	payloadStr := string(msg.Payload())
+	deviceId, err := database.GetDeviceIDByUUID(uuid)
+	if err != nil {
+		log.Printf("Error retrieving device ID for UUID %s: %s", uuid, err)
+		return
+	}
 
-			if err := database.UpdateDeviceState(uuid, payloadStr); err != nil {
-				log.Printf("Error updating device state in DB: %s", err)
-				return
-			}
+	// Insert or update the provided value for the device in the database
+	if err := database.InsertProvidedValue(deviceId, payloadStr); err != nil {
+		log.Printf("Error updating provided value in the database for device %s: %s", uuid, err)
+		return
+	}
 
-			log.Printf("Updated state for device %s with JSON payload", uuid)
-		}*/
+	// Log successful update
+	log.Printf("Updated provided value for device %s with payload: %s", uuid, payloadStr)
 }

@@ -2,22 +2,23 @@
     <h2>{{.Name}}</h2>
     {{range .Devices}}
         <h5>{{.Device.Name}}</h5>
-        <div class="device-tile" id="device-{{.Device.ID}}">
+        {{ $deviceID := .Device.ID }} <!-- Capture the device ID here -->
+        <div class="device-tile" id="device-{{$deviceID}}">
             {{range $actionName, $actionType := .ShownActions}}
                 {{if eq $actionType "command"}}
-                    <button hx-post="/device/{{$.Device.ID}}/{{$actionName}}" hx-target="#device-{{$.Device.ID}}"
+                    <button hx-post="/device/{{$deviceID}}/{{$actionName}}" hx-target="#device-{{$deviceID}}"
                             hx-swap="outerHTML">{{$actionName}}</button>
                 {{else if eq $actionType "provide_value"}}
-                    <div>{{$actionName}}: <span hx-get="/device/{{$.Device.ID}}/{{$actionName}}" hx-trigger="every 2s"
+                    <div>{{$actionName}}: <span hx-get="/device/{{$deviceID}}/{{$actionName}}" hx-trigger="every 2s"
                                                 hx-swap="innerHTML">[Value]</span></div>
                 {{else if eq $actionType "numberInput"}}
                     <label>
                         {{$actionName}}:
                         <input type="number"
                                name="{{$actionName}}"
-                               hx-post="/update_device/{{$.Device.ID}}"
+                               hx-post="/update_device/{{$deviceID}}"
                                hx-trigger="change"
-                               hx-target="#device-{{$.Device.ID}}"
+                               hx-target="#device-{{$deviceID}}"
                                hx-swap="outerHTML">
                     </label>
                 {{end}}
