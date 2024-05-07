@@ -11,7 +11,7 @@ PubSubClient mqttClient(espClient);
 
 SemaphoreHandle_t mutex;
 unsigned long lastMessageTime = 0;
-volatile long messageInterval = 2000;
+volatile long messageInterval = 60000;
 
 void setup_wifi()
 {
