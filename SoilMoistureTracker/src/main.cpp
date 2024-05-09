@@ -39,7 +39,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.println(msg);
 
     if (strcmp(topic, interval_change_topic.c_str()) == 0) {
-        long newInterval = atol(msg);  // Assuming the message contains the new interval directly
+        long newInterval = atol(msg);
 
         if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
             messageInterval = newInterval;
