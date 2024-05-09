@@ -7,12 +7,12 @@
             {{range $actionName, $actionType := .ShownActions}}
                 {{if eq $actionType "command"}}
                     <div>Command
-                        <button hx-post="/device/{{$deviceID}}/command/{{$actionName}}"
+                        <button hx-get="/device/{{$deviceID}}/command/{{$actionName}}"
                                 hx-swap="none">{{$actionName}}</button>
                     </div>
                 {{else if eq $actionType "provide_value"}}
                     <div>{{$actionName}}: <span hx-get="/device/{{$deviceID}}/provide_value/{{$actionName}}"
-                                                hx-trigger="every 15s"
+                                                hx-trigger="load, every 15s"
                                                 hx-swap="innerHTML">[Value]</span></div>
                 {{else if eq $actionType "numberInput"}}
                     <div>
@@ -26,8 +26,18 @@
                                    hx-swap="outerHTML">
                         </label>
                     </div>
+                {{else if eq $actionType "toggle"}}
+                    <div>
+                        <button class="btn btn-outline-warning" hx-post="/device/{{$deviceID}}/toggle/{{$actionName}}"
+                                hx-trigger="click"
+                                hx-swap="none">{{ $actionName }}</button>
+                    </div>
+                    <div hx-get="/device/{{$deviceID}}/state/{{$actionName}}" hx-trigger="load" hx-target="#stateUpdate-{{$deviceID}}-{{$actionName}}">
+                        State: <span id="stateUpdate-{{$deviceID}}-{{$actionName}}"></span>
+                    </div>
                 {{end}}
             {{end}}
         </div>
     {{end}}
 </div>
+

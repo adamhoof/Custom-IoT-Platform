@@ -1,37 +1,48 @@
 ``` sql
 -- Create a custom type for device types if you have a known set of types
-CREATE TYPE device_type AS ENUM ('temperature_sensor', 'humidity_sensor', 'soil_moisture_sensor', 'on_off_device');
-
+CREATE TYPE device_type AS ENUM ('temperature_sensor', 'humidity_sensor', 'soil_moisture_sensor', 'light_switch');
 -- Table for storing action templates with a JSONB validation check
 CREATE TABLE action_templates
 (
     action_template_id SERIAL PRIMARY KEY,
     device_type        device_type NOT NULL UNIQUE,
-    actions            JSONB NOT NULL CHECK (
+    actions            JSONB NOT NULL,
+    CONSTRAINT check_actions CHECK (
         (actions ? 'Temperature' AND jsonb_typeof(actions -> 'Temperature') = 'string') OR
         (actions ? 'Humidity' AND jsonb_typeof(actions -> 'Humidity') = 'string') OR
         (actions ? 'Soil_moisture' AND jsonb_typeof(actions -> 'Soil_moisture') = 'string') OR
-        (actions ? 'On' AND jsonb_typeof(actions -> 'On') = 'string') OR
-        (actions ? 'Off' AND jsonb_typeof(actions -> 'Off') = 'string')
-    )
+        (actions ? 'Light_state' AND jsonb_typeof(actions -> 'Light_state') = 'string')
+        )
 );
 
 -- Populate the action_templates table
-INSERT INTO action_templates (device_type, actions) VALUES
-('temperature_sensor', '{"Temperature": "provide_value", "Interval_ms": "numberInput"}'::jsonb),
-('humidity_sensor', '{"Humidity": "provide_value", "Interval_ms": "numberInput"}'::jsonb),
-('soil_moisture_sensor', '{"Soil_moisture": "provide_value", "Interval_ms": "numberInput"}'::jsonb),
-('on_off_device', '{"On": "command", "Off": "command"}'::jsonb);
+INSERT INTO action_templates (device_type, actions)
+VALUES ('temperature_sensor', '{
+  "Temperature": "provide_value",
+  "Interval_ms": "numberInput"
+}'::jsonb),
+       ('humidity_sensor', '{
+         "Humidity": "provide_value",
+         "Interval_ms": "numberInput"
+       }'::jsonb),
+       ('soil_moisture_sensor', '{
+         "Soil_moisture": "provide_value",
+         "Interval_ms": "numberInput"
+       }'::jsonb),
+       ('light_switch', '{
+         "Light_state": "toggle"
+       }'::jsonb);
 
 -- Table for storing device information
 CREATE TABLE devices
 (
     device_id          SERIAL PRIMARY KEY,
     uuid               UUID UNIQUE NOT NULL,
-    device_name        TEXT NOT NULL,
+    device_name        TEXT        NOT NULL,
     action_template_id INTEGER REFERENCES action_templates (action_template_id),
     custom_actions     JSONB,
-    last_login         TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP
+    last_login         TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP,
+    state              JSONB DEFAULT '{}'::jsonb
 );
 
 -- Table for storing dashboard information
@@ -57,8 +68,8 @@ CREATE TABLE devices_in_dashboard
 CREATE TABLE sensor_data
 (
     timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    device_id INT NOT NULL,
-    data      JSONB NOT NULL,
+    device_id INT                                   NOT NULL,
+    data      JSONB                                 NOT NULL,
     CONSTRAINT fk_device FOREIGN KEY (device_id) REFERENCES devices (device_id)
 );
 

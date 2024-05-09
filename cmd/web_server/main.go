@@ -3,6 +3,7 @@ package main
 import (
 	"NSI-semester-work/internal/db"
 	"NSI-semester-work/internal/http_handlers"
+	"NSI-semester-work/internal/model"
 	"NSI-semester-work/internal/mqtt_handlers"
 	"fmt"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
@@ -34,7 +35,7 @@ func setupMqttClient() (MQTT.Client, error) {
 	return client, nil
 }
 
-func setupMqttSubscriptionHandlers(client MQTT.Client, database *db.Database) error {
+func setupMqttSubscriptionHandlers(client MQTT.Client, database *db.Database, sseChannel chan model.Update) error {
 	if token := client.Subscribe("login/request/+", 0, func(client MQTT.Client, msg MQTT.Message) {
 		mqtt_handlers.HandleDeviceLogin(client, msg, database)
 	}); token.Wait() && token.Error() != nil {
@@ -43,10 +44,17 @@ func setupMqttSubscriptionHandlers(client MQTT.Client, database *db.Database) er
 	if token := client.Subscribe("provide_value/+", 1, func(client MQTT.Client, msg MQTT.Message) { mqtt_handlers.ValueProvidedHandler(msg, database) }); token.Wait() && token.Error() != nil {
 		return fmt.Errorf("failed to subscribe to post topic: %v", token.Error())
 	}
+
+	if token := client.Subscribe("state/+", 1, func(client MQTT.Client, msg MQTT.Message) {
+		mqtt_handlers.StateUpdatedHandler(msg, database, sseChannel)
+	}); token.Wait() && token.Error() != nil {
+		return fmt.Errorf("failed to subscribe to post topic: %v", token.Error())
+	}
+
 	return nil
 }
 
-func setupHttpServer(database *db.Database, mqttClient MQTT.Client) error {
+func setupHttpServer(database *db.Database, mqttClient MQTT.Client, sseChannel chan model.Update) error {
 	serverHostname := os.Getenv("HTTP_SERVER_HOST")
 	port := os.Getenv("HTTP_SERVER_PORT")
 
@@ -60,6 +68,9 @@ func setupHttpServer(database *db.Database, mqttClient MQTT.Client) error {
 		http_handlers.SendCommandHandler(w, r, mqttClient, database)
 	})
 	mux.HandleFunc("/device/{device_id}/provide_value/{action_name}", func(w http.ResponseWriter, r *http.Request) { http_handlers.GetLastSensorValueHandler(w, r, database) })
+	mux.HandleFunc("/device/{device_id}/toggle/{action_name}", func(w http.ResponseWriter, r *http.Request) { http_handlers.ToggleHandler(w, r, database, mqttClient) })
+	mux.HandleFunc("/sseStateUpdates", func(w http.ResponseWriter, r *http.Request) { http_handlers.SseStateHandler(w, database, sseChannel) })
+	mux.HandleFunc("/device/{device_id}/state/{action_name}", func(w http.ResponseWriter, r *http.Request) { http_handlers.GetDeviceState(w, r, database) })
 
 	fmt.Printf("starting HTTP server: http://%s:%s\n", serverHostname, port)
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%s", serverHostname, port), mux); err != nil {
@@ -69,6 +80,7 @@ func setupHttpServer(database *db.Database, mqttClient MQTT.Client) error {
 }
 
 func main() {
+	sseChannel := make(chan model.Update, 10)
 	mqttClient, err := setupMqttClient()
 	if err != nil {
 		log.Fatal(err)
@@ -92,12 +104,12 @@ func main() {
 		}
 	}(database)
 
-	err = setupMqttSubscriptionHandlers(mqttClient, database)
+	err = setupMqttSubscriptionHandlers(mqttClient, database, sseChannel)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err = setupHttpServer(database, mqttClient); err != nil {
+	if err = setupHttpServer(database, mqttClient, sseChannel); err != nil {
 		log.Fatal(err)
 	}
 }

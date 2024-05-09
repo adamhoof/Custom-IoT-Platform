@@ -5,6 +5,7 @@
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
+volatile bool lightState = false;
 
 void mqttCallback(char* topic, byte* payload, unsigned int length)
 {
@@ -17,14 +18,21 @@ void mqttCallback(char* topic, byte* payload, unsigned int length)
     msg[length] = '\0';
     Serial.println(msg);
 
-    if (strcmp(topic, command_topic.c_str()) == 0) {
-        if (strcmp(msg, "On") == 0) {
+    if (strcmp(topic, toggle_topic.c_str()) == 0) {
+        if (strcmp(msg, "Light_state") == 0) {
+            StaticJsonDocument<200> doc;
+            lightState = !lightState;
+            doc["Action_name"] = "Light_state";
+            lightState ? doc["Light_state"] = "On" : doc["Light_state"] = "Off";
+
             Serial.println("Device turned ON");
+
+            char jsonBuffer[512];
+            serializeJson(doc, jsonBuffer);
+            mqttClient.publish(state_topic.c_str(), jsonBuffer);
         }
-    } else if (strcmp(msg, "Off") == 0) {
-        Serial.println("Device turned OFF");
     } else if (strcmp(topic, login_response_topic.c_str()) == 0) {
-        mqttClient.subscribe(command_topic.c_str());
+        mqttClient.subscribe(toggle_topic.c_str());
         Serial.println("subscribed");
     }
 }

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	_ "github.com/lib/pq"
+	"log"
 )
 
 // Database holds the connection pool to the database
@@ -276,4 +277,33 @@ func (db *Database) GetDeviceUUID(deviceId int) (uuid string, err error) {
 	}
 
 	return uuid, nil
+}
+
+func (db *Database) UpdateDeviceState(deviceId int, newState map[string]interface{}) error {
+	newStateJSON, err := json.Marshal(newState)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`UPDATE devices SET state = state || $1::jsonb WHERE device_id = $2`,
+		newStateJSON, deviceId)
+	return err
+}
+
+func (db *Database) GetDeviceState(deviceId int, actionName string) (string, error) {
+	var actionState string
+	err := db.QueryRow(`
+        SELECT state->>$1 FROM devices WHERE device_id = $2
+    `, actionName, deviceId).Scan(&actionState)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Log and return not found as a custom error if needed
+			log.Printf("No entry found for device ID %d and action %s\n", deviceId, actionName)
+			return "", err
+		}
+		log.Printf("Database error: %v\n", err)
+		return "", err
+	}
+
+	return actionState, nil
 }
