@@ -3,7 +3,6 @@ package http_handlers
 import (
 	"NSI-semester-work/internal/db"
 	"NSI-semester-work/internal/model"
-	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -41,19 +40,8 @@ func SseStateHandler(w http.ResponseWriter, r *http.Request, db *db.Database, ss
 				continue // Decide if you want to skip sending the event.
 			}
 
-			// Serialize data into JSON format for sending.
-			jsonData, err := json.Marshal(map[string]interface{}{
-				"deviceID":   update.DeviceID,
-				"actionName": update.ActionName,
-				"state":      update.State,
-			})
-			if err != nil {
-				fmt.Println("Failed to serialize update to JSON:", err)
-				continue // Skip this update if serialization fails.
-			}
-
 			// Send the SSE data to the client.
-			_, err = fmt.Fprintf(w, "data: %s\n\n", jsonData)
+			_, err = fmt.Fprintf(w, "event: stateUpdate-%d-%s\ndata: %s\n\n", update.DeviceID, update.ActionName, update.State)
 			if err != nil {
 				fmt.Println("Error printing state update data:", err)
 				continue

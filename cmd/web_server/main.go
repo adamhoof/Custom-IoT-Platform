@@ -69,7 +69,9 @@ func setupHttpServer(database *db.Database, mqttClient MQTT.Client, sseChannel c
 	})
 	mux.HandleFunc("/device/{device_id}/provide_value/{action_name}", func(w http.ResponseWriter, r *http.Request) { http_handlers.GetLastSensorValueHandler(w, r, database) })
 	mux.HandleFunc("/device/{device_id}/toggle/{action_name}", func(w http.ResponseWriter, r *http.Request) { http_handlers.ToggleHandler(w, r, database, mqttClient) })
-	mux.HandleFunc("/sseStateUpdates", func(w http.ResponseWriter, r *http.Request) { http_handlers.SseStateHandler(w, database, sseChannel) })
+	mux.HandleFunc("/sseStateUpdates", func(w http.ResponseWriter, r *http.Request) {
+		http_handlers.SseStateHandler(w, r, database, sseChannel)
+	})
 	mux.HandleFunc("/device/{device_id}/state/{action_name}", func(w http.ResponseWriter, r *http.Request) { http_handlers.GetDeviceState(w, r, database) })
 
 	fmt.Printf("starting HTTP server: http://%s:%s\n", serverHostname, port)

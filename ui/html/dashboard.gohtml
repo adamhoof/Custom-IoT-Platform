@@ -1,4 +1,5 @@
 <div id="dashboardContent">
+    <div></div>
     <h2>{{.Name}}</h2>
     {{range .Devices}}
         <h5>{{.Device.Name}}</h5>
@@ -33,7 +34,7 @@
                                 hx-swap="none">{{ $actionName }}</button>
                     </div>
                     <div hx-get="/device/{{$deviceID}}/state/{{$actionName}}" hx-trigger="load" hx-target="#stateUpdate-{{$deviceID}}-{{$actionName}}">
-                        State: <span id="stateUpdate-{{$deviceID}}-{{$actionName}}"></span>
+                        State: <span sse-swap="stateUpdate-{{$deviceID}}-{{$actionName}}" id="stateUpdate-{{$deviceID}}-{{$actionName}}"></span>
                     </div>
                 {{end}}
             {{end}}
