@@ -33,7 +33,7 @@ func parseMessage(msg MQTT.Message) (uuid string, actionName string, stateValue 
 
 	stateValue, ok = jsonData[actionName].(string)
 	if !ok {
-		log.Println("State value not found or invalid")
+		log.Printf("State value not found or invalid: %s\n", stateValue)
 		return "", "", ""
 	}
 
@@ -41,8 +41,6 @@ func parseMessage(msg MQTT.Message) (uuid string, actionName string, stateValue 
 }
 func StateUpdatedHandler(message MQTT.Message, database *db.Database, sseChannel chan model.Update) {
 	var update model.Update
-
-	message.Topic()
 
 	var deviceUuid string
 	deviceUuid, update.ActionName, update.State = parseMessage(message)

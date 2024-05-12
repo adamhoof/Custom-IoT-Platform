@@ -17,15 +17,21 @@
                                                 hx-swap="innerHTML">[Value]</span></div>
                 {{else if eq $actionType "numberInput"}}
                     <div>
-                        <label>
-                            {{$actionName}}:
-                            <input type="number"
-                                   name="{{$actionName}}"
-                                   hx-post="/update_device/{{$deviceID}}"
-                                   hx-trigger="change"
-                                   hx-target="#device-{{$deviceID}}"
-                                   hx-swap="outerHTML">
-                        </label>
+                        <form hx-post="/device/number_input" hx-swap="none">
+                            <input type="hidden" name="deviceID" value="{{$deviceID}}">
+                            <input type="hidden" name="actionName" value="{{$actionName}}">
+                            <label>
+                                {{$actionName}}:
+                                <input type="number" name="inputValue"/>
+                                <button type="submit">Submit</button>
+                            </label>
+                        </form>
+                    </div>
+
+                    <div hx-get="/device/{{$deviceID}}/state/{{$actionName}}" hx-trigger="load"
+                         hx-target="#stateUpdate-{{$deviceID}}-{{$actionName}}">
+                        Current value: <span sse-swap="stateUpdate-{{$deviceID}}-{{$actionName}}"
+                                             id="stateUpdate-{{$deviceID}}-{{$actionName}}"></span>
                     </div>
                 {{else if eq $actionType "toggle"}}
                     <div>
@@ -33,8 +39,10 @@
                                 hx-trigger="click"
                                 hx-swap="none">{{ $actionName }}</button>
                     </div>
-                    <div hx-get="/device/{{$deviceID}}/state/{{$actionName}}" hx-trigger="load" hx-target="#stateUpdate-{{$deviceID}}-{{$actionName}}">
-                        State: <span sse-swap="stateUpdate-{{$deviceID}}-{{$actionName}}" id="stateUpdate-{{$deviceID}}-{{$actionName}}"></span>
+                    <div hx-get="/device/{{$deviceID}}/state/{{$actionName}}" hx-trigger="load"
+                         hx-target="#stateUpdate-{{$deviceID}}-{{$actionName}}">
+                        State: <span sse-swap="stateUpdate-{{$deviceID}}-{{$actionName}}"
+                                     id="stateUpdate-{{$deviceID}}-{{$actionName}}"></span>
                     </div>
                 {{end}}
             {{end}}

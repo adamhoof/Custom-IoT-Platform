@@ -73,6 +73,9 @@ func setupHttpServer(database *db.Database, mqttClient MQTT.Client, sseChannel c
 		http_handlers.SseStateHandler(w, r, database, sseChannel)
 	})
 	mux.HandleFunc("/device/{device_id}/state/{action_name}", func(w http.ResponseWriter, r *http.Request) { http_handlers.GetDeviceState(w, r, database) })
+	mux.HandleFunc("/device/number_input", func(w http.ResponseWriter, r *http.Request) {
+		http_handlers.NumberInputHandler(w, r, database, mqttClient)
+	})
 
 	fmt.Printf("starting HTTP server: http://%s:%s\n", serverHostname, port)
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%s", serverHostname, port), mux); err != nil {

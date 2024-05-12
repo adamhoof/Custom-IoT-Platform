@@ -38,15 +38,24 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     msg[length] = '\0';
     Serial.println(msg);
 
-    if (strcmp(topic, interval_change_topic.c_str()) == 0) {
+    if (strcmp(topic, number_input_topic.c_str()) == 0) {
         long newInterval = atol(msg);
 
         if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
             messageInterval = newInterval;
             xSemaphoreGive(mutex);
         }
+        StaticJsonDocument<200> doc;
+        doc["Action_name"] = "Interval_ms";
+        doc["Interval_ms"] = msg;
+
+        Serial.println("Changed message interval");
+
+        char jsonBuffer[512];
+        serializeJson(doc, jsonBuffer);
+        mqttClient.publish(state_topic.c_str(), jsonBuffer);
     } else if (strcmp(topic, login_response_topic.c_str()) == 0) {
-        mqttClient.subscribe(interval_change_topic.c_str());
+        mqttClient.subscribe(number_input_topic.c_str());
     }
 }
 
