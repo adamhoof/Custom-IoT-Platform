@@ -38,6 +38,9 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     msg[length] = '\0';
     Serial.println(msg);
 
+    std::string topicStr(topic);
+    std::string payloadStr((char*)payload, length);
+
     if (strcmp(topic, number_input_topic.c_str()) == 0) {
         long newInterval = atol(msg);
 
@@ -55,6 +58,36 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         serializeJson(doc, jsonBuffer);
         mqttClient.publish(state_topic.c_str(), jsonBuffer);
     } else if (strcmp(topic, login_response_topic.c_str()) == 0) {
+        Serial.println("Received login response");
+        StaticJsonDocument<512> doc;  // Adjust size based on expected payload complexity
+        DeserializationError error = deserializeJson(doc, payloadStr);
+
+        if (error) {
+            Serial.print("deserializeJson() failed with code ");
+            Serial.println(error.c_str());
+            return;
+        }
+
+        // Extracting the login status and device states from the JSON payload
+        const char* loginStatus = doc["login"];  // "successful"
+        JsonObject stateObj = doc["state"].as<JsonObject>();
+
+        Serial.println("Login Status: ");
+        Serial.println(loginStatus);
+        if (strcmp(loginStatus, "successful") != 0){
+            ESP.restart();
+        }
+
+        const char* interval = stateObj["Interval_ms"];
+        if (strcmp(interval,"") != 0){
+            long newInterval = atol(interval);
+
+            if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+                messageInterval = newInterval;
+                xSemaphoreGive(mutex);
+            }
+        }
+
         mqttClient.subscribe(number_input_topic.c_str());
     }
 }
