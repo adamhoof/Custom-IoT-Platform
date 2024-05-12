@@ -179,6 +179,29 @@ func CreateDashboardHandler(w http.ResponseWriter, r *http.Request, db *db.Datab
 		return
 	}
 
+	dashboards, err := db.FetchDashboards()
+	if err != nil {
+		fmt.Printf("failed to fetch dashboards %s\n", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	t, err := template.ParseFiles("ui/html/dashboard_list.gohtml")
+	if err != nil {
+		fmt.Printf("failed to load template %s\n", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = t.Execute(w, map[string]interface{}{
+		"Dashboards": dashboards,
+	})
+	if err != nil {
+		fmt.Printf("failed to execute template %s\n", err)
+		http.Error(w, "Error executing template", http.StatusInternalServerError)
+		return
+	}
+
 	_, err = fmt.Fprintln(w, "Dashboard saved successfully!")
 	if err != nil {
 		http.Error(w, "Failed to send confirmation: "+err.Error(), http.StatusInternalServerError)

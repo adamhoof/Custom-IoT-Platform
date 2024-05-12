@@ -1,6 +1,6 @@
 <div>
     <h2>Dashboard Creator</h2>
-    <form id="dashboardForm" hx-post="/create_dashboard">
+    <form id="dashboardForm" hx-post="/create_dashboard" hx-target="#dashboardList" hx-swap="outerHTML">
         <label>
             <input type="text" name="dashboardName" placeholder="Enter Dashboard Name" required
                    class="form-control mb-3">
