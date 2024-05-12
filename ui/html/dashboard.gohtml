@@ -15,7 +15,7 @@
                     <div>{{$actionName}}: <span hx-get="/device/{{$deviceID}}/provide_value/{{$actionName}}"
                                                 hx-trigger="load, every 15s"
                                                 hx-swap="innerHTML">[Value]</span></div>
-                {{else if eq $actionType "numberInput"}}
+                {{else if eq $actionType "number_input"}}
                     <div>
                         <form hx-post="/device/number_input" hx-swap="none">
                             <input type="hidden" name="deviceID" value="{{$deviceID}}">
