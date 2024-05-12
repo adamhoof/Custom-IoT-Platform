@@ -307,3 +307,12 @@ func (db *Database) GetDeviceState(deviceId int, actionName string) (string, err
 
 	return actionState, nil
 }
+
+func (db *Database) GetDeviceStates(deviceID int) (stateJson string, err error) {
+	query := "SELECT state FROM devices WHERE device_id = $1"
+	err = db.QueryRow(query, deviceID).Scan(&stateJson)
+	if err != nil {
+		return "", err
+	}
+	return stateJson, nil
+}

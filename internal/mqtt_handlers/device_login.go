@@ -34,6 +34,20 @@ func HandleDeviceLogin(client MQTT.Client, msg MQTT.Message, database *db.Databa
 		log.Println(err)
 	}
 
-	token := client.Publish(os.Getenv("MQTT_LOGIN_RESPONSE_TOPIC")+device.UUID, 0, false, []byte{'y'})
+	deviceId, err := database.GetDeviceIDByUUID(device.UUID)
+	if err != nil {
+		log.Println("Failed to fetch device id")
+		return
+	}
+
+	stateJson, err := database.GetDeviceStates(deviceId)
+	if err != nil {
+		log.Printf("Failed to fetch device states: %s", err)
+		return
+	}
+
+	responseTopic := os.Getenv("MQTT_LOGIN_RESPONSE_TOPIC") + device.UUID
+	responsePayload := fmt.Sprintf("{\"login\": \"successful\", \"state\": %s}", stateJson)
+	token := client.Publish(responseTopic, 0, false, []byte(responsePayload))
 	token.Wait()
 }
