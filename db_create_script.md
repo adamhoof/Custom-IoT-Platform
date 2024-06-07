@@ -19,15 +19,15 @@ CREATE TABLE action_templates
 INSERT INTO action_templates (device_type, actions)
 VALUES ('temperature_sensor', '{
   "Temperature": "provide_value",
-  "Interval_ms": "numberInput"
+  "Interval_ms": "number_input"
 }'::jsonb),
        ('humidity_sensor', '{
          "Humidity": "provide_value",
-         "Interval_ms": "numberInput"
+         "Interval_ms": "number_input"
        }'::jsonb),
        ('soil_moisture_sensor', '{
          "Soil_moisture": "provide_value",
-         "Interval_ms": "numberInput"
+         "Interval_ms": "number_input"
        }'::jsonb),
        ('light_switch', '{
          "Light_state": "toggle"
