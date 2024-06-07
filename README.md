@@ -93,6 +93,6 @@ mqttClient.publish(login_request_topic.c_str(), loginJsonBuffer);
 Setup and Configuration
 
 Run PostgreSQL+Timescale DB, Mosquitto broker and web server with gui by executing this command in the root directory: 
-    ```shell
+    ```
     docker compose up
     ```
